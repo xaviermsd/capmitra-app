@@ -1,0 +1,5 @@
+rnnoise.wasm — RNNoise noise suppression (https://github.com/xiph/rnnoise),
+compiled to WebAssembly by the Jitsi project (@jitsi/rnnoise-wasm 0.2.1,
+https://github.com/jitsi/rnnoise-wasm, Apache License 2.0).
+RNNoise is Copyright (c) 2017 Mozilla, 2007-2017 Jean-Marc Valin, and is
+released under the BSD 3-Clause licence. Used by CapMitra's Voice clean-up.

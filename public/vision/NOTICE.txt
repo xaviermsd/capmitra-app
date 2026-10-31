@@ -1,0 +1,5 @@
+MediaPipe Tasks Vision (@mediapipe/tasks-vision 0.10.21) WebAssembly runtime, the
+BlazeFace short-range face detection model and the Selfie Segmenter model,
+Copyright Google LLC, Apache License 2.0 (https://github.com/google-ai-edge/mediapipe).
+Used by CapMitra's Shorts "Keep the speaker in frame" and "Captions behind the person",
+entirely in the browser; no video leaves the device.
