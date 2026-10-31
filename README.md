@@ -16,6 +16,10 @@
 **Auto captions and video editing for Reels, Shorts and YouTube.**<br />
 Drop a video, get word-timed captions, style and edit them, then export an MP4, all in your browser, on a computer or a phone.
 
+<a href="https://capmitra-app.vercel.app"><img src="https://img.shields.io/badge/Open_CapMitra-Invite--only_beta-D6FF36?style=for-the-badge&labelColor=080808" alt="Open CapMitra (invite-only beta)" /></a>
+<a href="https://ig.me/m/harshprajapatiofficial"><img src="https://img.shields.io/badge/Get_an_invite-DM_on_Instagram-080808?style=for-the-badge&labelColor=D6FF36&logo=instagram&logoColor=080808" alt="Get an invite on Instagram" /></a>
+<a href="#see-it"><img src="https://img.shields.io/badge/See_it_in_action-11_steps-080808?style=for-the-badge&labelColor=F7F8F4" alt="See it in action" /></a>
+
 ![Next.js](https://img.shields.io/badge/Next.js-16-080808?style=for-the-badge&logo=nextdotjs&logoColor=D6FF36)
 ![TypeScript](https://img.shields.io/badge/TypeScript-5-080808?style=for-the-badge&logo=typescript&logoColor=D6FF36)
 ![Speech to text](https://img.shields.io/badge/Speech_to_text-ElevenLabs_Scribe-D6FF36?style=for-the-badge&labelColor=080808)
@@ -116,21 +120,111 @@ Clip speed from **0.25× to 4×** (voices keep their pitch), select anything on 
 
 ## ▣ See it in action
 
-<img src="docs/images/editor-light.jpg" alt="CapMitra on desktop: the editor with the templates panel, a big preview and the timeline" width="100%" />
+A quick tour of the desktop editor, from setting up your key to the finished video. The demo clip is from [Spindia](https://www.youtube.com/@spindia007), used with permission.
 
-<details>
-<summary><b>📸 More screens</b> (click to open)</summary>
-<br />
+<table>
+<tr>
+<td width="50%" valign="top">
 
-| Start screen | Editor |
-|---|---|
-| <img src="docs/images/welcome.jpg" alt="Start screen with drop zone and recent projects" /> | <img src="docs/images/editor-light.jpg" alt="Editor with the templates panel" /> |
-| **Centre guides while dragging** | **Projects** |
-| <img src="docs/images/centre-guides.jpg" alt="Caption being dragged with a centre guide" /> | <img src="docs/images/projects.jpg" alt="Projects page with search and actions" /> |
-| **Team passcode** | **On a phone** |
-| <img src="docs/images/passcode.jpg" alt="Passcode screen" /> | <img src="docs/images/mobile.jpg" alt="Phone layout" width="220" /> |
+**1. Add your ElevenLabs key**<br />
+Paste your own free key once in **Settings**. It stays in this browser and is only ever shown masked.
 
-</details>
+<img src="docs/readme/guide/01-elevenlabs-key.gif" alt="Add your ElevenLabs key" width="100%" />
+
+</td>
+<td width="50%" valign="top">
+
+**2. Drop a video, get captions**<br />
+Pick the language and script, press **Generate captions**, and every word comes back with its own timing.
+
+<img src="docs/readme/guide/02-auto-captions.gif" alt="Drop a video, get captions" width="100%" />
+
+</td>
+</tr>
+<tr>
+<td width="50%" valign="top">
+
+**3. Pick a template**<br />
+46 animated looks: karaoke, neon, word chips, chat bubbles and more. One tap applies it to every line.
+
+<img src="docs/readme/guide/03-templates.gif" alt="Pick a template" width="100%" />
+
+</td>
+<td width="50%" valign="top">
+
+**4. Style it**<br />
+Caption size, a font made for Gujarati, and the highlight colour for the spoken word.
+
+<img src="docs/readme/guide/04-style.gif" alt="Style it" width="100%" />
+
+</td>
+</tr>
+<tr>
+<td width="50%" valign="top">
+
+**5. Fix a word in seconds**<br />
+Click a misheard word and type the right spelling, or add a headline and type straight onto the video.
+
+<img src="docs/readme/guide/05-edit-text.gif" alt="Fix a word in seconds" width="100%" />
+
+</td>
+<td width="50%" valign="top">
+
+**6. Effects and transitions**<br />
+One-tap presets like Reels hype, split at the playhead with **S**, and pick a transition for the cut.
+
+<img src="docs/readme/guide/06-effects-transitions.gif" alt="Effects and transitions" width="100%" />
+
+</td>
+</tr>
+<tr>
+<td width="50%" valign="top">
+
+**7. Clips and timeline**<br />
+Add photos, title cards and clips, zoom in for frame-exact edits, then **Fit** to see the whole edit.
+
+<img src="docs/readme/guide/07-timeline.gif" alt="Clips and timeline" width="100%" />
+
+</td>
+<td width="50%" valign="top">
+
+**8. Your brand kit**<br />
+Save your fonts, colours and logo once, then apply them to any project.
+
+<img src="docs/readme/guide/08-brand-kit.gif" alt="Your brand kit" width="100%" />
+
+</td>
+</tr>
+<tr>
+<td width="50%" valign="top">
+
+**9. Export**<br />
+MP4 up to 4K, rendered right in your browser while you watch, or SRT and VTT subtitles.
+
+<img src="docs/readme/guide/10-export.gif" alt="Export" width="100%" />
+
+</td>
+<td width="50%" valign="top">
+
+**10. Remove the badge with a code**<br />
+Free exports carry a small **Made with CapMitra** badge. Paste your personal code and it's gone.
+
+<img src="docs/readme/guide/11-watermark-code.gif" alt="Remove the badge with a code" width="100%" />
+
+</td>
+</tr>
+<tr>
+<td width="50%" valign="top">
+
+**11. Projects and backup**<br />
+Every project saves on this device. Back them all up to one file and restore on any computer.
+
+<img src="docs/readme/guide/12-projects-backup.gif" alt="Projects and backup" width="100%" />
+
+</td>
+<td width="50%" valign="top"></td>
+</tr>
+</table>
 
 <a id="templates"></a>
 
@@ -275,10 +369,10 @@ Open **http://localhost:3000** in **Chrome or Edge** and drop a video. Add your 
 
 > About 15 minutes, all free. Sign up to [Vercel](https://vercel.com) **with GitHub**.
 
-1. **Import** — [vercel.com/new](https://vercel.com/new) → import `capmitra-app`. Next.js is detected automatically.
-2. **Environment variables** — copy these from your `.env.local`: `APP_PASSCODE`, `ADMIN_PASSWORD`, `WATERMARK_SECRET` (exactly the same value), `WATERMARK_MASTER_CODE`, `ELEVENLABS_API_KEY`.
+1. **Import** - [vercel.com/new](https://vercel.com/new) → import `capmitra-app`. Next.js is detected automatically.
+2. **Environment variables** - copy these from your `.env.local`: `APP_PASSCODE`, `ADMIN_PASSWORD`, `WATERMARK_SECRET` (exactly the same value), `WATERMARK_MASTER_CODE`, `ELEVENLABS_API_KEY`.
 3. **Deploy**, then add `NEXT_PUBLIC_SITE_URL` = your live link and **Redeploy**, so WhatsApp, Instagram and X show the CapMitra preview card.
-4. **Code history (optional)** — **Storage → Create Database → Upstash (Redis)** → connect it → **Redeploy**.
+4. **Code history (optional)** - **Storage → Create Database → Upstash (Redis)** → connect it → **Redeploy**.
 
 <details>
 <summary><b>👥 Sharing with friends: everyone uses their own key</b></summary>
