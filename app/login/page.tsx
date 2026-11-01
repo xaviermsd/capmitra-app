@@ -142,8 +142,11 @@ function LoginBackdrop() {
       {/* caption bubble, top right */}
       <g className="lb lb-2"><g className="lb-float lb-float-b">
         <rect x="1150" y="104" width="230" height="120" rx="30" fill="#080808" transform="translate(10 10)" />
+        <path d="M1191.4 218 L1176 262 L1231 218 Z" fill="#080808" transform="translate(10 10)" />
         <rect x="1150" y="104" width="230" height="120" rx="30" fill="#FFFFFF" stroke="#080808" strokeWidth="4" />
-        <path d="M1190 222 L1176 262 L1226 222 Z" fill="#FFFFFF" stroke="#080808" strokeWidth="4" strokeLinejoin="round" />
+        {/* tail: white fill covers the bubble's bottom edge, then only its two sides are outlined so it joins the bubble */}
+        <path d="M1191.4 218 L1176 262 L1231 218 Z" fill="#FFFFFF" />
+        <path d="M1190.7 220 L1176 262 L1228.5 220" fill="none" stroke="#080808" strokeWidth="4" strokeLinejoin="round" />
         <rect x="1180" y="140" width="130" height="16" rx="8" fill="#080808" />
         <rect x="1180" y="172" width="90" height="16" rx="8" fill="#D6FF36" stroke="#080808" strokeWidth="2" />
         <path d="M1330 146 v36 l28 -18 z" fill="#D6FF36" stroke="#080808" strokeWidth="3" strokeLinejoin="round" />
