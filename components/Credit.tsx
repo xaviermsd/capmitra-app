@@ -1,7 +1,7 @@
 /** Creator credit, shown across the app. */
 export const CREATOR = {
   name: "Harsh Prajapati",
-  url: "https://www.instagram.com/harshprajapatiofficial/",
+  url: "https://github.com/xaviermsd",
 };
 
 export function Credit({ className = "" }: { className?: string }) {
