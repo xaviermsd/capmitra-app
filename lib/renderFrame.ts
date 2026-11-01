@@ -7,12 +7,13 @@
  * every encoded frame, with the same arguments, so they always match.
  */
 import { composeFrame } from "./frame";
-import { itemAt, transitionAt, type EditTimeline } from "./edl";
+import { itemAt, transitionAt, type EditTimeline, type Placed } from "./edl";
+import { drawTransition } from "./transitionRender";
 import { drawCaptions, fontString, type CaptionBox } from "./render";
 import { cutOutPeople } from "./segment";
 import { assetImage, drawLayers } from "./layers";
 import { drawWatermark, type WatermarkCorner } from "./watermark";
-import { CAPTION_Z, type Background, type CardClip, type Layer, type Speaker } from "./project";
+import { CAPTION_Z, type Background, type CardClip, type Layer, type Speaker, type VideoClip } from "./project";
 import { fxStateAt, NO_FX, type FxClip } from "./effects/fx";
 import { applyCamera, drawFxFlash, drawFxOverlays } from "./effects/fxRender";
 import type { CaptionLine, CaptionStyle, FrameSettings, Overrides, Translations } from "./types";
@@ -37,7 +38,14 @@ export interface Scene {
   watermark?: { corner: WatermarkCorner } | null;
   /** Video effects on the output timeline. */
   effects?: FxClip[];
+  /**
+   * First or last frame of a video clip, for the clip that isn't playing
+   * during a transition. Without it that side of the transition shows black.
+   */
+  edges?: EdgeFrames;
 }
+
+export type EdgeFrames = (clip: VideoClip, edge: "start" | "end") => SourceFrame | null;
 
 export interface SourceFrame {
   image: CanvasImageSource;
@@ -153,60 +161,29 @@ function drawCard(ctx: Ctx, W: number, H: number, c: CardClip, local: number) {
 
 /* ---------- the frame ---------- */
 
-/** Returns the caption's bounding box (for click-to-select in the preview). */
-export function renderFrame(ctx: Ctx, s: Scene, src: SourceFrame | null): CaptionBox | null {
-  const { W, H, t } = s;
-  const item = itemAt(s.tl, t);
-  const tr = transitionAt(s.tl, t);
-  let fx = s.effects?.length ? fxStateAt(s.effects, t) : NO_FX;
-  // transitions that borrow effect drawing
-  if (tr && (tr.kind === "glitch" || tr.kind === "whip")) {
-    fx = { ...fx };
-    if (tr.kind === "glitch") { fx.glitch = { amount: Math.max(fx.glitch?.amount ?? 0, tr.amount), seed: Math.round(t * 30) }; fx.rgbSplit = Math.max(fx.rgbSplit, tr.amount); }
-    else fx.motionBlur = Math.max(fx.motionBlur, tr.amount);
-  }
-
-  ctx.save();
-  ctx.fillStyle = "#000";
-  ctx.fillRect(0, 0, W, H);
-  if (fx !== NO_FX) applyCamera(ctx, W, H, fx);
-
-  // transform the base picture for movement transitions
-  if (tr) {
-    const a = tr.amount;
-    const sign = tr.phase === "out" ? -1 : 1;
-    if (tr.kind === "zoom") {
-      const k = 1 + 0.35 * a;
-      ctx.translate(W / 2, H / 2); ctx.scale(k, k); ctx.translate(-W / 2, -H / 2);
-    } else if (tr.kind === "spin") {
-      ctx.translate(W / 2, H / 2); ctx.rotate(sign * a * 0.6); ctx.scale(1 + 0.4 * a, 1 + 0.4 * a); ctx.translate(-W / 2, -H / 2);
-    } else if (tr.kind === "whip") ctx.translate(-sign * W * 0.35 * a, 0);
-    else if (tr.kind === "slide-left") ctx.translate(sign * W * a, 0);
-    else if (tr.kind === "slide-up") ctx.translate(0, sign * H * a);
-    else if (tr.kind === "blur") ctx.filter = `${ctx.filter && ctx.filter !== "none" ? ctx.filter + " " : ""}blur(${Math.round(a * Math.max(W, H) * 0.02)}px)`;
-    else if (tr.kind === "wipe") {
-      ctx.beginPath();
-      if (tr.phase === "in") ctx.rect(0, 0, W * (1 - a), H); else ctx.rect(W * a, 0, W * (1 - a), H);
-      ctx.clip();
-    }
-  }
-
+/** Paint one clip's picture over the whole frame. */
+function drawPicture(ctx: Ctx, s: Scene, it: Placed | null, src: SourceFrame | null, t: number, held = false): void {
+  const { W, H } = s;
+  const clip = it?.clip;
   // image clips draw their own picture (the preview and the exporter pass no source frame)
-  if (item?.clip.kind === "image") {
-    const img = assetImage(item.clip.assetId);
+  if (clip?.kind === "image") {
+    const img = assetImage(clip.assetId);
     src = img && img.naturalWidth ? { image: img, w: img.naturalWidth, h: img.naturalHeight } : null;
   }
-  if (item?.clip.kind === "card") {
-    drawCard(ctx, W, H, item.clip, t - item.outStart);
+  if (clip?.kind === "card" && it) {
+    drawCard(ctx, W, H, clip, Math.max(0, Math.min(t, it.outEnd) - it.outStart));
   } else if (src) {
-    const clip = item?.clip;
-    let f = clip && clip.frame ? { ...s.frame, ...clip.frame } : s.frame;
-    if (clip?.kind === "image" && clip.kenBurns && clip.kenBurns !== 1 && item) {
+    let f = clip && clip.kind !== "card" && clip.frame ? { ...s.frame, ...clip.frame } : s.frame;
+    if (clip?.kind === "image" && clip.kenBurns && clip.kenBurns !== 1 && it) {
       // slow push-in over the whole clip
-      const p = Math.min(1, Math.max(0, (t - item.outStart) / Math.max(0.1, item.outEnd - item.outStart)));
+      const p = Math.min(1, Math.max(0, (t - it.outStart) / Math.max(0.1, it.outEnd - it.outStart)));
       f = { ...f, zoom: Math.max(1, (f.zoom ?? 1)) * (1 + (clip.kenBurns - 1) * p) };
     }
     composeFrame(ctx, src.image, src.w, src.h, W, H, f);
+  } else if (held) {
+    // an edge frame that isn't decoded yet: black, so the transition reads as a dip
+    ctx.fillStyle = "#000";
+    ctx.fillRect(0, 0, W, H);
   } else {
     const g = ctx.createLinearGradient(0, 0, W, H);
     g.addColorStop(0, "#23262E");
@@ -214,15 +191,33 @@ export function renderFrame(ctx: Ctx, s: Scene, src: SourceFrame | null): Captio
     ctx.fillStyle = g;
     ctx.fillRect(0, 0, W, H);
   }
-  ctx.restore();
+}
 
-  if (tr && (tr.kind === "fade" || tr.kind === "dip-white" || tr.kind === "zoom" || tr.kind === "blur" || tr.kind === "spin")) {
-    ctx.save();
-    ctx.globalAlpha = tr.kind === "fade" || tr.kind === "dip-white" ? tr.amount : tr.amount * 0.5;
-    ctx.fillStyle = tr.kind === "dip-white" ? "#FFFFFF" : "#000000";
-    ctx.fillRect(0, 0, W, H);
-    ctx.restore();
+/** Returns the caption's bounding box (for click-to-select in the preview). */
+export function renderFrame(ctx: Ctx, s: Scene, src: SourceFrame | null): CaptionBox | null {
+  const { W, H, t } = s;
+  const item = itemAt(s.tl, t);
+  const tr = transitionAt(s.tl, t);
+  const fx = s.effects?.length ? fxStateAt(s.effects, t) : NO_FX;
+
+  ctx.save();
+  ctx.fillStyle = "#000";
+  ctx.fillRect(0, 0, W, H);
+  if (fx !== NO_FX) applyCamera(ctx, W, H, fx);
+
+  if (tr) {
+    // the live clip uses the decoded frame; the other one is held on its edge frame
+    const live = tr.phase === "out" ? tr.from : tr.to;
+    const other = tr.phase === "out" ? tr.to : tr.from;
+    const otherSrc = other.clip.kind === "video" ? s.edges?.(other.clip, tr.phase === "out" ? "start" : "end") ?? null : null;
+    const otherT = tr.phase === "out" ? other.outStart : other.outEnd;
+    const paintLive = (c: Ctx) => drawPicture(c, s, live, src, t);
+    const paintOther = (c: Ctx) => drawPicture(c, s, other, otherSrc, otherT, true);
+    drawTransition(ctx, W, H, { kind: tr.kind, p: tr.p, t }, tr.phase === "out" ? paintLive : paintOther, tr.phase === "out" ? paintOther : paintLive);
+  } else {
+    drawPicture(ctx, s, item, src, t);
   }
+  ctx.restore();
 
   if (fx !== NO_FX) drawFxOverlays(ctx, W, H, fx);
 

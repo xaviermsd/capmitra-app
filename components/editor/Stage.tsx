@@ -7,6 +7,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useEditor } from "./EditorContext";
 import { renderFrame, type SourceFrame } from "@/lib/renderFrame";
+import { createEdgeGrabber, type EdgeGrabber } from "@/lib/edgeFrames";
 import { itemAt } from "@/lib/edl";
 import { outputSize, platformById } from "@/lib/frame";
 import { layerBox } from "@/lib/layers";
@@ -47,6 +48,17 @@ export function Stage() {
     | null
   >(null);
 
+  /* ---------- edge frames for transitions ---------- */
+  const edgesRef = useRef<EdgeGrabber | null>(null);
+  useEffect(() => {
+    const g = createEdgeGrabber();
+    edgesRef.current = g;
+    return () => { g.dispose(); if (edgesRef.current === g) edgesRef.current = null; };
+  }, []);
+  useEffect(() => {
+    edgesRef.current?.sync(ed.clips, (id) => (id ? ed.sourceUrls[id] ?? null : videoUrl ?? null));
+  }, [ed.clips, ed.sourceUrls, videoUrl]);
+
   /* ---------- render loop ---------- */
   const live = useRef({ doc, lines, tl, selection, showWm: ed.showWm, wmCorner: ed.settings.wmCorner, isEmpty: ed.isEmpty, quality: ed.settings.previewQuality, grid: ed.settings.showGrid });
   live.current = { doc, lines, tl, selection, showWm: ed.showWm, wmCorner: ed.settings.wmCorner, isEmpty: ed.isEmpty, quality: ed.settings.previewQuality, grid: ed.settings.showGrid };
@@ -81,7 +93,7 @@ export function Stage() {
           capBoxRef.current = renderFrame(ctx, {
             W, H, t, tl: L.tl, frame: L.doc.frame, lines: L.lines, style: L.doc.style, overrides: L.doc.overrides,
             translations: L.doc.translations, layers: L.doc.layers, captionZ: L.doc.captionZ, speakers: L.doc.speakers,
-            watermark: L.showWm ? { corner: L.wmCorner } : null, effects: L.doc.effects,
+            watermark: L.showWm ? { corner: L.wmCorner } : null, effects: L.doc.effects, edges: edgesRef.current?.get,
           }, src);
           // safe-zone guide (editor only)
           const plat = platformById(L.doc.frame.platform);

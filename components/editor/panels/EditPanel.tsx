@@ -14,13 +14,9 @@ import { splitHere } from "../QuickControls";
 import { ALL_FONTS } from "@/lib/fonts";
 import { putAsset, probeMedia, assetUrl } from "@/lib/assets";
 import type { Background, CardClip, Clip, ImageClip, TransitionKind, VideoClip } from "@/lib/project";
+import { defaultDuration, TRANSITION_META } from "@/lib/transitions";
 
-const TRANSITIONS: { value: TransitionKind; label: string }[] = [
-  { value: "none", label: "Cut (none)" }, { value: "fade", label: "Fade through black" }, { value: "dip-white", label: "Flash to white" },
-  { value: "zoom", label: "Zoom" }, { value: "slide-left", label: "Slide" }, { value: "slide-up", label: "Slide up" },
-  { value: "wipe", label: "Wipe" }, { value: "blur", label: "Blur" }, { value: "whip", label: "Whip pan" },
-  { value: "spin", label: "Spin" }, { value: "glitch", label: "Glitch" },
-];
+const TRANSITIONS: { value: TransitionKind; label: string }[] = TRANSITION_META.map((m) => ({ value: m.kind, label: m.kind === "none" ? "Cut (none)" : m.label }));
 
 const fmt = (s: number) => (Number.isFinite(s) ? `${Math.floor(s / 60)}:${(s % 60).toFixed(1).padStart(4, "0")}` : "end");
 const WHERE: { value: InsertWhere; label: string }[] = [{ value: "playhead", label: "At the playhead" }, { value: "end", label: "At the end" }, { value: "start", label: "At the start" }];
@@ -201,7 +197,7 @@ export function EditPanel() {
           </Section>
           <Section title="Transition into this clip">
             {selIdx === 0 ? <p className="muted">On the first clip this fades in from black.</p> : null}
-            <Select label="Effect" value={sel.transition?.kind ?? "none"} options={TRANSITIONS} onChange={(v) => updClip({ transition: v === "none" ? undefined : { kind: v, duration: sel.transition?.duration ?? 0.6 } })} />
+            <Select label="Effect" value={sel.transition?.kind ?? "none"} options={TRANSITIONS} onChange={(v) => updClip({ transition: v === "none" ? undefined : { kind: v, duration: defaultDuration(v) } })} />
             {sel.transition ? (
               <>
                 <Slider label="Duration" value={sel.transition.duration} min={0.1} max={2} step={0.05} unit="s" onChange={(v) => updClip({ transition: { ...sel.transition!, duration: v } })} />

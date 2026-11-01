@@ -737,7 +737,8 @@ kbd { display: inline-block; padding: 2px 7px; border-radius: 6px; background: v
 .tr-art i:first-child { background: #C9B8FF; clip-path: inset(0 50% 0 0); }
 .tr-art i:last-child { background: #FFD166; clip-path: inset(0 0 0 50%); }
 .tr-none i:first-child { clip-path: inset(0 50% 0 0); }
-.tr-fade i:last-child { background: linear-gradient(90deg, #080808, #FFD166); clip-path: inset(0 0 0 35%); }
+.tr-fade i:last-child { background: linear-gradient(90deg, #C9B8FF, #FFD166 70%); clip-path: inset(0 0 0 20%); }
+.tr-dip-black i:last-child { background: linear-gradient(90deg, #080808, #FFD166); clip-path: inset(0 0 0 35%); }
 .tr-dip-white i:last-child { background: linear-gradient(90deg, #fff, #FFD166); clip-path: inset(0 0 0 35%); }
 .tr-zoom i:last-child { clip-path: circle(38% at 70% 50%); }
 .tr-slide-left i:last-child { clip-path: polygon(40% 0, 100% 0, 100% 100%, 60% 100%); }

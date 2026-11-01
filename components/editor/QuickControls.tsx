@@ -17,6 +17,7 @@ import { buildTimeline, canMerge, itemAt, mergeWithNext, outToSrc, SPEEDS, speed
 import { VOICE_PRESETS } from "@/lib/voice/presets";
 import { AUDIO_ACCEPT, useAudioControls } from "./hooks/useAudioControls";
 import type { Clip, TransitionKind } from "@/lib/project";
+import { defaultDuration, TRANSITION_META } from "@/lib/transitions";
 
 const clock = (s: number) => `${Math.floor(s / 60)}:${(Math.max(0, s) % 60).toFixed(1).padStart(4, "0")}`;
 const speedLabel = (k: number) => `${k}×`;
@@ -196,12 +197,7 @@ export function SoundPop({ anchor, onClose }: { anchor: HTMLElement | null; onCl
 
 /* ---------- a cut between two clips ---------- */
 
-export const TRANSITION_CHOICES: { value: TransitionKind; label: string }[] = [
-  { value: "none", label: "None" }, { value: "fade", label: "Fade" }, { value: "dip-white", label: "Flash" },
-  { value: "zoom", label: "Zoom" }, { value: "slide-left", label: "Slide" }, { value: "slide-up", label: "Slide up" },
-  { value: "wipe", label: "Wipe" }, { value: "blur", label: "Blur" }, { value: "whip", label: "Whip pan" },
-  { value: "spin", label: "Spin" }, { value: "glitch", label: "Glitch" },
-];
+export const TRANSITION_CHOICES: { value: TransitionKind; label: string }[] = TRANSITION_META.map((m) => ({ value: m.kind, label: m.short ?? m.label }));
 
 /** Edit the cut in front of clip `clipId`: transition, preview, join back. */
 export function CutSheet({ clipId, anchor, onClose }: { clipId: string; anchor: HTMLElement | null; onClose: () => void }) {
@@ -223,7 +219,7 @@ export function CutSheet({ clipId, anchor, onClose }: { clipId: string; anchor: 
     stopRef.current = window.setTimeout(() => playback.pause(), 2400 / Math.max(0.25, playback.rate));
   };
   const setTr = (kind: TransitionKind) => {
-    setClips(clips.map((c) => (c.id === clipId ? { ...c, transition: kind === "none" ? undefined : { kind, duration: tr?.duration ?? 0.6 } } : c)), `cut:${clipId}`);
+    setClips(clips.map((c) => (c.id === clipId ? { ...c, transition: kind === "none" ? undefined : { kind, duration: defaultDuration(kind) } } : c)), `cut:${clipId}`);
     if (kind !== "none") setTimeout(preview, 60);
   };
   const join = () => {
@@ -236,7 +232,7 @@ export function CutSheet({ clipId, anchor, onClose }: { clipId: string; anchor: 
   };
 
   return (
-    <QuickPop title={`Cut at ${clock(it.outStart)}`} sub={tr ? `Transition: ${TRANSITION_CHOICES.find((x) => x.value === tr.kind)?.label ?? tr.kind}, ${tr.duration.toFixed(1)} s` : "No transition: a straight cut"} anchor={anchor} onClose={onClose} className="qp-cut">
+    <QuickPop title={`Cut at ${clock(it.outStart)}`} sub={tr ? `Transition: ${TRANSITION_META.find((x) => x.kind === tr.kind)?.label ?? tr.kind}, ${tr.duration.toFixed(2).replace(/0$/, "")} s` : "No transition: a straight cut"} anchor={anchor} onClose={onClose} className="qp-cut">
       <div className="tr-grid" role="radiogroup" aria-label="Transition">
         {TRANSITION_CHOICES.map((t) => {
           const on = (tr?.kind ?? "none") === t.value;

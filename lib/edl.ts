@@ -2,15 +2,16 @@
  * Edit-list maths: where each clip sits on the output timeline, and how
  * output time maps to source-video time and back.
  *
- * Transitions are "dip" style (the outgoing clip finishes its effect at the cut,
- * the incoming clip starts from it), so they never overlap clips and the output
- * duration is simply the sum of clip lengths. Preview and export only ever need
- * one source frame at a time.
+ * Transitions are centred on the cut and never change clip lengths, so the
+ * output duration is simply the sum of clip lengths. During a transition the
+ * clip that isn't playing is shown on its edge frame (see lib/transitions.ts),
+ * so preview and export only ever decode one moving source at a time.
  *
  * Pure functions: unit-tested in tests/edl.test.ts.
  */
 import { isMainVideo, type Clip, type TransitionKind, type VideoClip } from "./project";
 import type { Word } from "./types";
+import { dipAmount, transitionHalf, transitionProgress } from "./transitions";
 
 export interface Placed {
   clip: Clip;
@@ -195,29 +196,32 @@ export function rippleDelete(clips: Clip[], from: number, to: number, newId: () 
 
 export interface TransitionState {
   kind: TransitionKind;
-  /** 0 = no effect, 1 = full effect (e.g. fully black for "fade"). */
+  /** Progress through the whole transition, 0 -> 1 (0.5 at the cut). */
+  p: number;
+  /** Legacy dip amount: 0 = no effect, 1 = full effect at the cut. */
   amount: number;
-  /** "out" while leaving a clip, "in" while entering. */
+  /** "out" before the cut (the old clip is live), "in" after it. */
   phase: "out" | "in";
+  /** Output time of the cut. */
+  cut: number;
+  /** Half-length in seconds. */
+  half: number;
+  /** The clip being left and the clip being entered. */
+  from: Placed;
+  to: Placed;
 }
-
-const ease = (x: number) => x * x * (3 - 2 * x); // smoothstep
 
 /** Transition effect active at output time t, if any. */
 export function transitionAt(tl: EditTimeline, t: number): TransitionState | null {
-  for (let i = 0; i < tl.items.length; i++) {
+  for (let i = 1; i < tl.items.length; i++) {
     const it = tl.items[i];
     const tr = it.clip.transition;
     if (!tr || tr.kind === "none" || tr.duration <= 0) continue;
-    const len = it.outEnd - it.outStart;
-    const half = Math.min(tr.duration / 2, len / 2);
-    const b = it.outStart;
-    if (t >= b && t < b + half) return { kind: tr.kind, amount: ease(1 - (t - b) / half), phase: "in" };
     const prev = tl.items[i - 1];
-    if (prev) {
-      const ph = Math.min(half, (prev.outEnd - prev.outStart) / 2);
-      if (t >= b - ph && t < b) return { kind: tr.kind, amount: ease((t - (b - ph)) / ph), phase: "out" };
-    }
+    const half = transitionHalf(tr.duration, prev.outEnd - prev.outStart, it.outEnd - it.outStart);
+    const p = transitionProgress(t, it.outStart, half);
+    if (p === null) continue;
+    return { kind: tr.kind, p, amount: dipAmount(p), phase: t < it.outStart ? "out" : "in", cut: it.outStart, half, from: prev, to: it };
   }
   return null;
 }

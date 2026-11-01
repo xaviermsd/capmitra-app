@@ -5,6 +5,7 @@
  */
 import type { EditTimeline } from "./edl";
 import { transitionAt } from "./edl";
+import { transitionGain } from "./transitions";
 import type { AudioSettings, Music } from "./project";
 import type { Word } from "./types";
 
@@ -62,7 +63,7 @@ export function sourceGainAt(t: number, tl: EditTimeline, audio: AudioSettings):
   if (!it || it.clip.kind !== "video") return 0; // cards and images are silent
   g *= it.clip.volume ?? 1;
   const tr = transitionAt(tl, t);
-  if (tr) g *= 1 - tr.amount; // dip the sound across a transition
+  if (tr) g *= transitionGain(tr.kind, t, tr.cut, tr.half); // duck the sound at the cut
   return Math.max(0, g);
 }
 

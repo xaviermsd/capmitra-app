@@ -24,7 +24,8 @@ import { breathe } from "./livePreview";
 import { outputSize } from "./frame";
 import { LIMITER_RANGE, limiterCurve, musicGainAt, musicTimeAt, sourceGainAt, speechAt } from "./audioMix";
 import { isMainVideo, type AudioSettings, type Clip, type ExportFormat, type VideoClip } from "./project";
-import type { SourceFrame } from "./renderFrame";
+import type { EdgeFrames, SourceFrame } from "./renderFrame";
+import { edgeKey, edgeRequests, edgeTime } from "./transitions";
 import type { AspectId, Word } from "./types";
 
 type Ctx = OffscreenCanvasRenderingContext2D;
@@ -44,8 +45,8 @@ export interface ExportJob {
   format: ExportFormat;
   /** Frame size to use when there is no source video (cards only). */
   fallbackSize?: { w: number; h: number };
-  /** Draw output time t onto the canvas. */
-  render: (ctx: Ctx, W: number, H: number, t: number, src: SourceFrame | null) => void;
+  /** Draw output time t onto the canvas (`edges` holds the frames transitions need). */
+  render: (ctx: Ctx, W: number, H: number, t: number, src: SourceFrame | null, edges?: EdgeFrames) => void;
   audio: AudioSettings;
   /** Output-time words, for music ducking. */
   speech: Word[];
@@ -143,6 +144,26 @@ export async function exportEdited(job: ExportJob): Promise<ExportResult> {
   let mid: OffscreenCanvas | null = null;
   let midCtx: OffscreenCanvasRenderingContext2D | null = null;
 
+  // first / last frames of the clips on either side of each transition, decoded once
+  const edgeFrames = new Map<string, SourceFrame>();
+  for (const req of edgeRequests(job.clips)) {
+    checkAbort();
+    const sink = sinks.video(req.clip);
+    if (!sink) continue;
+    const track = sourceFor(req.clip)?.vTrack;
+    const dur = track ? await track.computeDuration().catch(() => Infinity) : Infinity;
+    const sample = await sink.getSample(Math.max(0, Math.min(edgeTime(req.clip, req.edge), dur - 0.04))).catch(() => null);
+    if (!sample) continue;
+    // kept at no more than the output size: these only ever fill the frame
+    const k = Math.min(1, Math.max(W, H) / Math.max(sample.displayWidth, sample.displayHeight));
+    const ew = Math.max(1, Math.round(sample.displayWidth * k)), eh = Math.max(1, Math.round(sample.displayHeight * k));
+    const c = new OffscreenCanvas(ew, eh);
+    sample.drawWithFit(c.getContext("2d")!, { fit: "fill" });
+    sample.close();
+    edgeFrames.set(edgeKey(req.clip, req.edge), { image: c, w: ew, h: eh });
+  }
+  const edges: EdgeFrames = (clip, edge) => edgeFrames.get(edgeKey(clip, edge)) ?? null;
+
   const totalFrames = Math.max(1, Math.round(tl.duration * fps));
   let frame = 0;
   // voice enhancer runs on the original sound, continuously across mix windows
@@ -186,7 +207,7 @@ export async function exportEdited(job: ExportJob): Promise<ExportResult> {
               src = { image: mid, w: dw, h: dh };
             }
             ctx.clearRect(0, 0, W, H);
-            job.render(ctx, W, H, k / fps, src);
+            job.render(ctx, W, H, k / fps, src, edges);
             job.onFrame?.(canvas, k / fps);
             await videoSource.add(k / fps, 1 / fps);
             await breathe();
@@ -198,7 +219,7 @@ export async function exportEdited(job: ExportJob): Promise<ExportResult> {
           for (let k = n; k < end; k++) {
             checkAbort();
             ctx.clearRect(0, 0, W, H);
-            job.render(ctx, W, H, k / fps, null);
+            job.render(ctx, W, H, k / fps, null, edges);
             job.onFrame?.(canvas, k / fps);
             await videoSource.add(k / fps, 1 / fps);
             await breathe();

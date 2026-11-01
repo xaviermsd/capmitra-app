@@ -1,5 +1,5 @@
-import { activePop, activeSettle, entrance, LETTER_STAGGER, REST, splitClusters, type Pose } from "./animation";
-import { lineAt, shownWords, wordState, type WordState } from "./grouping";
+import { entrance, exitFactor, LETTER_STAGGER, REST, splitClusters, wordPop, type Pose } from "./animation";
+import { LINGER, lineAt, shownWords, wordState, type WordState } from "./grouping";
 import { FALLBACK_FONTS, fallbackChain, injectFont, nearestWeight } from "./fonts";
 import { displayWord } from "./translit";
 import { translationFor } from "./bilingual";
@@ -452,7 +452,13 @@ export function drawCaptions(ctx: Ctx, W: number, H: number, lines: CaptionLine[
   const perWord = style.reveal === "build" || style.reveal === "solo";
   const letters = style.enter === "letters" || style.enter === "typewriter";
   const eo = { easing: style.easing, direction: style.direction, delay: style.enterDelay };
-  const linePose = perWord || letters ? REST : entrance(style.enter, t - line.start, style.speed, eo);
+  const enterPose = perWord || letters ? REST : entrance(style.enter, t - line.start, style.speed, eo);
+  // leaving into a pause: ease out instead of vanishing (a caption that is
+  // replaced straight away just hands over to the next one's entrance)
+  const next = lines[li + 1];
+  const visibleEnd = line.end + (next ? Math.min(LINGER, Math.max(0, next.start - line.end)) : LINGER);
+  const exitK = next && next.start - visibleEnd < 0.01 ? 1 : exitFactor(t, visibleEnd);
+  const linePose = exitK < 1 ? { ...enterPose, opacity: enterPose.opacity * exitK, scale: enterPose.scale * (0.97 + 0.03 * exitK) } : enterPose;
 
   // background plate behind the caption (one box, one per line, or full width)
   const plates = style.plate ? plateRects(placed, box, style, W, px) : [];
@@ -543,15 +549,15 @@ export function drawCaptions(ctx: Ctx, W: number, H: number, lines: CaptionLine[
     const { word } = pl;
     const state = wordState(word, t);
     let pose = linePose;
-    if (perWord && !letters) pose = entrance(style.enter, t - word.start, style.speed, eo);
+    if (perWord && !letters) {
+      const wp = entrance(style.enter, t - word.start, style.speed, eo);
+      pose = exitK < 1 ? { ...wp, opacity: wp.opacity * exitK, scale: wp.scale * (0.97 + 0.03 * exitK) } : wp;
+    }
 
     // spoken-word pop
     const extra = (style.active.scale ?? 1) - 1;
     let k = 0;
-    if (extra !== 0) {
-      if (state === "active") k = activePop(t - word.start);
-      else if (state === "spoken") k = activeSettle(t - word.end);
-    }
+    if (extra !== 0 && state !== "upcoming") k = wordPop(t, word.start, word.end);
     const wordScale = 1 + extra * k;
 
     let opacity = pose.opacity;

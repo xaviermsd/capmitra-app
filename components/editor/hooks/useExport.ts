@@ -11,7 +11,7 @@ import { loadSegmenter } from "@/lib/segment";
 import { displayWord } from "@/lib/translit";
 import { isTrivial } from "@/lib/edl";
 import { preloadAssetImages, preloadLayerImages } from "@/lib/layers";
-import { preloadBackgrounds, renderFrame, type Scene } from "@/lib/renderFrame";
+import { preloadBackgrounds, renderFrame, type EdgeFrames, type Scene } from "@/lib/renderFrame";
 import { ensureAssets, decodeAudioAsset, assetFile } from "@/lib/assets";
 import { loadWatermark } from "@/lib/watermark";
 import { saveSink } from "@/lib/saveSink";
@@ -128,10 +128,10 @@ async function renderToTarget(inp: Omit<ExportInput, "saveToDisk" | "name">, o: 
   o.onStage?.("render");
   const { buildTimeline } = await import("@/lib/edl");
   const tl = buildTimeline(inp.clips);
-  const sceneAt = (W: number, H: number, t: number): Scene => ({
+  const sceneAt = (W: number, H: number, t: number, edges?: EdgeFrames): Scene => ({
     W, H, t, tl, frame: inp.doc.frame, lines: inp.lines, style: inp.doc.style, overrides: inp.doc.overrides,
     translations: inp.doc.translations, layers: inp.doc.layers, captionZ: inp.doc.captionZ, speakers: inp.doc.speakers,
-    watermark: inp.watermark, effects: inp.doc.effects,
+    watermark: inp.watermark, effects: inp.doc.effects, edges,
   });
   let finishing = false;
   const progress = (p: number) => {
@@ -167,7 +167,7 @@ async function renderToTarget(inp: Omit<ExportInput, "saveToDisk" | "name">, o: 
   const sounds = await Promise.all((inp.doc.sounds ?? []).map(async (x) => ({ start: x.start, volume: x.volume, buffer: await decodeAudioAsset(x.assetId) })));
   const r = await exportEdited({
     file: inp.file, sources, clips: inp.clips, aspect: inp.doc.frame.aspect, short: prefs.short, quality: prefs.quality, fps: prefs.fps,
-    format: prefs.format, render: (ctx, W, H, t, src) => { renderFrame(ctx, sceneAt(W, H, t), src); },
+    format: prefs.format, render: (ctx, W, H, t, src, edges) => { renderFrame(ctx, sceneAt(W, H, t, edges), src); },
     audio, speech: inp.outWords, music, sounds, writable: stream, onProgress: progress, onFrame, signal: o.signal,
     fallbackSize: inp.doc.frame.aspect === "16:9" ? { w: 1920, h: 1080 } : inp.doc.frame.aspect === "1:1" ? { w: 1080, h: 1080 } : { w: 1080, h: 1920 },
   });

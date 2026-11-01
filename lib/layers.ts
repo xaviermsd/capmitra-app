@@ -7,6 +7,7 @@
  * so layers scale with any output size or aspect ratio.
  */
 import { splitClusters } from "./animation";
+import { easeOutBack, easeOutQuad, lerp, softSpring } from "./easing";
 import { fontString } from "./render";
 import { DEFAULT_MOTION, uid, type Direction, type Easing, type Layer, type LayerAnim, type LayerKind, type Speaker } from "./project";
 
@@ -19,8 +20,8 @@ export const EASINGS: Record<Easing, (x: number) => number> = {
   linear: (x) => x,
   "ease-out": (x) => 1 - Math.pow(1 - x, 3),
   "ease-in-out": (x) => (x < 0.5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2),
-  back: (x) => 1 + 2.70158 * Math.pow(x - 1, 3) + 1.70158 * Math.pow(x - 1, 2),
-  spring: (x) => 1 - Math.exp(-6 * x) * Math.cos(10 * x),
+  back: (x) => easeOutBack(x, 1.4),
+  spring: (x) => softSpring(x, 0.08),
 };
 
 export interface LayerPose {
@@ -42,21 +43,27 @@ function dirVec(d: Direction): [number, number] {
   return d === "left" ? [-1, 0] : d === "right" ? [1, 0] : d === "up" ? [0, -1] : [0, 1];
 }
 
-/** Apply one animation at progress p (0 = hidden, 1 = settled). */
-function applyAnim(pose: LayerPose, anim: LayerAnim, p: number, dir: Direction, W: number, H: number, entering: boolean) {
+/**
+ * Apply one animation at progress p (0 = hidden, 1 = settled; already eased).
+ * `raw` is the un-eased progress, used where a move has its own built-in
+ * spring so it stays controlled whatever easing is picked.
+ */
+function applyAnim(pose: LayerPose, anim: LayerAnim, p: number, raw: number, dir: Direction, W: number, H: number, entering: boolean) {
   if (anim === "none") return;
   const [vx, vy] = dirVec(dir);
   const k = 1 - p;
   // entering slides *from* the opposite side so "up" moves upwards into place
   const s = entering ? -1 : 1;
+  // opacity always eases (no hard first or last frame)
+  const fade = (portion: number) => easeOutQuad(raw / portion);
   switch (anim) {
-    case "fade": pose.opacity *= p; break;
-    case "pop": pose.opacity *= clamp01(p * 3); pose.scale *= 0.6 + 0.4 * p; break;
-    case "zoom": pose.opacity *= clamp01(p * 2); pose.scale *= 1 + 0.5 * k; break;
-    case "slide": pose.opacity *= clamp01(p * 2); pose.dx += s * vx * k * W * 0.12; pose.dy += s * vy * k * H * 0.12; break;
-    case "spin": pose.opacity *= clamp01(p * 2); pose.rotate += k * -90; pose.scale *= 0.7 + 0.3 * p; break;
-    case "bounce": pose.opacity *= clamp01(p * 3); pose.dy += -Math.abs(Math.sin(p * Math.PI * 1.5)) * k * H * 0.06; break;
-    case "blur": pose.opacity *= p; pose.blur += k * 12; break;
+    case "fade": pose.opacity *= clamp01(p); break;
+    case "pop": pose.opacity *= fade(0.5); pose.scale *= entering ? lerp(0.85, 1, softSpring(raw, 0.25)) : lerp(0.85, 1, p); break;
+    case "zoom": pose.opacity *= fade(0.5); pose.scale *= 1 + 0.25 * k; break;
+    case "slide": pose.opacity *= fade(0.6); pose.dx += s * vx * k * W * 0.1; pose.dy += s * vy * k * H * 0.1; break;
+    case "spin": pose.opacity *= fade(0.5); pose.rotate += k * -30; pose.scale *= 0.8 + 0.2 * p; break;
+    case "bounce": pose.opacity *= fade(0.3); pose.dy += -Math.abs(Math.cos(raw * Math.PI * 2)) * Math.pow(1 - raw, 2) * H * 0.05; break;
+    case "blur": pose.opacity *= clamp01(p); pose.blur += k * 10; break;
     case "wipe": pose.reveal = Math.min(pose.reveal, p); pose.revealDir = dir; break;
     case "typewriter": pose.reveal = Math.min(pose.reveal, p); pose.revealDir = "right"; break;
   }
@@ -71,9 +78,9 @@ export function layerPose(l: Layer, t: number, W: number, H: number): LayerPose 
   const d = Math.max(0.01, m.duration);
   const sinceIn = t - l.start - m.delay;
   if (sinceIn < 0 && m.in !== "none") return { ...pose, opacity: 0 };
-  if (m.in !== "none" && sinceIn < d) applyAnim(pose, m.in, ease(clamp01(sinceIn / d)), m.direction, W, H, true);
+  if (m.in !== "none" && sinceIn < d) applyAnim(pose, m.in, ease(clamp01(sinceIn / d)), clamp01(sinceIn / d), m.direction, W, H, true);
   const untilOut = l.end - t;
-  if (m.out !== "none" && untilOut < d) applyAnim(pose, m.out, ease(clamp01(untilOut / d)), m.direction, W, H, false);
+  if (m.out !== "none" && untilOut < d) applyAnim(pose, m.out, ease(clamp01(untilOut / d)), clamp01(untilOut / d), m.direction, W, H, false);
   const since = t - l.start;
   switch (m.loop) {
     case "float": pose.dy += Math.sin(since * 2.2) * H * 0.006; break;
