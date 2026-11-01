@@ -15,7 +15,9 @@ import type { CaptionStyle, FrameSettings, LineOverride, Overrides, ProjectData,
 
 /* ---------- edit list ---------- */
 
-export type TransitionKind = "none" | "fade" | "dip-black" | "dip-white" | "zoom" | "slide-left" | "slide-up" | "wipe" | "blur" | "spin" | "glitch" | "whip";
+export type TransitionKind =
+  | "none" | "fade" | "dip-black" | "dip-white" | "flash-black" | "zoom" | "zoom-out"
+  | "slide-left" | "slide-right" | "slide-up" | "slide-down" | "wipe" | "blur" | "spin" | "glitch" | "whip";
 
 /** How a clip enters (from the previous clip). */
 export interface Transition {

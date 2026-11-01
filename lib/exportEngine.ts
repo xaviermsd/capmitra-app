@@ -18,14 +18,14 @@ import {
   QUALITY_HIGH, QUALITY_MEDIUM, QUALITY_VERY_HIGH, StreamTarget, VideoSampleSink, WebMOutputFormat,
   getFirstEncodableAudioCodec, getFirstEncodableVideoCodec, type AudioCodec, type VideoCodec,
 } from "mediabunny";
-import { buildTimeline, speedOf, srcAt, type EditTimeline } from "./edl";
+import { buildTimeline, speedOf, srcAt, transitionAt, type EditTimeline } from "./edl";
 import { timeStretch } from "./timeStretch";
 import { breathe } from "./livePreview";
 import { outputSize } from "./frame";
 import { LIMITER_RANGE, limiterCurve, musicGainAt, musicTimeAt, sourceGainAt, speechAt } from "./audioMix";
 import { isMainVideo, type AudioSettings, type Clip, type ExportFormat, type VideoClip } from "./project";
-import type { EdgeFrames, SourceFrame } from "./renderFrame";
-import { edgeKey, edgeRequests, edgeTime } from "./transitions";
+import type { OtherFrame, SourceFrame } from "./renderFrame";
+import { handleTime } from "./overlap";
 import type { AspectId, Word } from "./types";
 
 type Ctx = OffscreenCanvasRenderingContext2D;
@@ -45,8 +45,8 @@ export interface ExportJob {
   format: ExportFormat;
   /** Frame size to use when there is no source video (cards only). */
   fallbackSize?: { w: number; h: number };
-  /** Draw output time t onto the canvas (`edges` holds the frames transitions need). */
-  render: (ctx: Ctx, W: number, H: number, t: number, src: SourceFrame | null, edges?: EdgeFrames) => void;
+  /** Draw output time t onto the canvas (`other` gives the other clip's picture during a transition). */
+  render: (ctx: Ctx, W: number, H: number, t: number, src: SourceFrame | null, other?: OtherFrame) => void;
   audio: AudioSettings;
   /** Output-time words, for music ducking. */
   speech: Word[];
@@ -85,13 +85,15 @@ export async function exportEdited(job: ExportJob): Promise<ExportResult> {
   if (needsMain && !job.file) throw new Error("Open the video first to export it.");
 
   // one decoder set per video file: the main video plus every extra video used by a clip
-  interface Source { input: Input; vTrack: Awaited<ReturnType<Input["getPrimaryVideoTrack"]>>; aTrack: Awaited<ReturnType<Input["getPrimaryAudioTrack"]>>; videoSink: VideoSampleSink | null; audioSink: AudioBufferSink | null }
+  interface Source { input: Input; vTrack: Awaited<ReturnType<Input["getPrimaryVideoTrack"]>>; aTrack: Awaited<ReturnType<Input["getPrimaryAudioTrack"]>>; videoSink: VideoSampleSink | null; handleSink: VideoSampleSink | null; duration: number; audioSink: AudioBufferSink | null }
   const openSource = async (f: File, label: string): Promise<Source> => {
     const input = new Input({ formats: ALL_FORMATS, source: new BlobSource(f) });
     const vTrack = await input.getPrimaryVideoTrack();
     if (!vTrack) throw new Error(`${label} has no video track.`);
     const aTrack = await input.getPrimaryAudioTrack();
-    return { input, vTrack, aTrack, videoSink: new VideoSampleSink(vTrack), audioSink: aTrack ? new AudioBufferSink(aTrack) : null };
+    const duration = await vTrack.computeDuration().catch(() => Infinity);
+    // a second decoder for the other clip's handle frames during transitions
+    return { input, vTrack, aTrack, videoSink: new VideoSampleSink(vTrack), handleSink: new VideoSampleSink(vTrack), duration, audioSink: aTrack ? new AudioBufferSink(aTrack) : null };
   };
   const main = job.file && needsMain ? await openSource(job.file, "This file") : null;
   const extras = new Map<string, Source>();
@@ -144,25 +146,48 @@ export async function exportEdited(job: ExportJob): Promise<ExportResult> {
   let mid: OffscreenCanvas | null = null;
   let midCtx: OffscreenCanvasRenderingContext2D | null = null;
 
-  // first / last frames of the clips on either side of each transition, decoded once
-  const edgeFrames = new Map<string, SourceFrame>();
-  for (const req of edgeRequests(job.clips)) {
-    checkAbort();
-    const sink = sinks.video(req.clip);
-    if (!sink) continue;
-    const track = sourceFor(req.clip)?.vTrack;
-    const dur = track ? await track.computeDuration().catch(() => Infinity) : Infinity;
-    const sample = await sink.getSample(Math.max(0, Math.min(edgeTime(req.clip, req.edge), dur - 0.04))).catch(() => null);
-    if (!sample) continue;
-    // kept at no more than the output size: these only ever fill the frame
-    const k = Math.min(1, Math.max(W, H) / Math.max(sample.displayWidth, sample.displayHeight));
-    const ew = Math.max(1, Math.round(sample.displayWidth * k)), eh = Math.max(1, Math.round(sample.displayHeight * k));
-    const c = new OffscreenCanvas(ew, eh);
-    sample.drawWithFit(c.getContext("2d")!, { fit: "fill" });
-    sample.close();
-    edgeFrames.set(edgeKey(req.clip, req.edge), { image: c, w: ew, h: eh });
-  }
-  const edges: EdgeFrames = (clip, edge) => edgeFrames.get(edgeKey(clip, edge)) ?? null;
+  /**
+   * Real footage of the clip that isn't playing during a transition, decoded
+   * for the frames of one run before they are drawn (see lib/overlap.ts for the
+   * handle times). Kept at no more than the output size and dropped after the run.
+   */
+  const handleFrames = new Map<number, SourceFrame>();
+  const decodeHandles = async (from: number, to: number) => {
+    handleFrames.clear();
+    const byItem = new Map<number, { clip: VideoClip; frames: number[]; times: number[] }>();
+    for (let k = from; k < to; k++) {
+      const t = k / fps;
+      const tr = transitionAt(tl, t);
+      if (!tr) continue;
+      const out = tr.phase === "out";
+      const other = out ? tr.to : tr.from;
+      if (other.clip.kind !== "video") continue;
+      const src = sourceFor(other.clip);
+      if (!src?.handleSink) continue;
+      const time = handleTime(other.clip, out ? "in" : "out", t, tr.cut, src.duration);
+      const g = byItem.get(other.index) ?? { clip: other.clip, frames: [], times: [] };
+      g.frames.push(k);
+      g.times.push(time);
+      byItem.set(other.index, g);
+    }
+    for (const g of byItem.values()) {
+      const sink = sourceFor(g.clip)!.handleSink!;
+      let i = 0;
+      for await (const sample of sink.samplesAtTimestamps(g.times)) {
+        checkAbort();
+        const k = g.frames[i++];
+        if (!sample) continue;
+        const sc = Math.min(1, Math.max(W, H) / Math.max(sample.displayWidth, sample.displayHeight));
+        const ew = Math.max(1, Math.round(sample.displayWidth * sc)), eh = Math.max(1, Math.round(sample.displayHeight * sc));
+        const c = new OffscreenCanvas(ew, eh);
+        sample.drawWithFit(c.getContext("2d")!, { fit: "fill" });
+        sample.close();
+        handleFrames.set(k, { image: c, w: ew, h: eh });
+      }
+    }
+  };
+  let curFrame = 0;
+  const other: OtherFrame = () => handleFrames.get(curFrame) ?? null;
 
   const totalFrames = Math.max(1, Math.round(tl.duration * fps));
   let frame = 0;
@@ -189,6 +214,7 @@ export async function exportEdited(job: ExportJob): Promise<ExportResult> {
         let end = n;
         while (end < last && (end / fps) < it.outEnd - 1e-9) end++;
         if (end === n) end = n + 1;
+        await decodeHandles(n, end);
         const videoSink = it.clip.kind === "video" ? sinks.video(it.clip) : null;
         if (it.clip.kind === "video" && videoSink) {
           const clip = it.clip;
@@ -207,7 +233,8 @@ export async function exportEdited(job: ExportJob): Promise<ExportResult> {
               src = { image: mid, w: dw, h: dh };
             }
             ctx.clearRect(0, 0, W, H);
-            job.render(ctx, W, H, k / fps, src, edges);
+            curFrame = k;
+            job.render(ctx, W, H, k / fps, src, other);
             job.onFrame?.(canvas, k / fps);
             await videoSource.add(k / fps, 1 / fps);
             await breathe();
@@ -219,7 +246,8 @@ export async function exportEdited(job: ExportJob): Promise<ExportResult> {
           for (let k = n; k < end; k++) {
             checkAbort();
             ctx.clearRect(0, 0, W, H);
-            job.render(ctx, W, H, k / fps, null, edges);
+            curFrame = k;
+            job.render(ctx, W, H, k / fps, null, other);
             job.onFrame?.(canvas, k / fps);
             await videoSource.add(k / fps, 1 / fps);
             await breathe();

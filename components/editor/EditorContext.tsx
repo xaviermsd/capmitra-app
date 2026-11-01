@@ -78,6 +78,8 @@ function useEditorState() {
   const musicRef = useRef<HTMLAudioElement | null>(null);
   /** Hidden <video> elements for extra videos added as clips, by asset id (filled in by the stage). */
   const extraVideos = useRef(new Map<string, HTMLVideoElement>());
+  /** Second player per source ("main" or a source id), see lib/overlap.ts. */
+  const twinVideos = useRef(new Map<string, HTMLVideoElement>());
   /** Blob URLs for those extra videos. */
   const [sourceUrls, setSourceUrls] = useState<Record<string, string>>({});
   const [file, setFile] = useState<File | null>(null);
@@ -173,7 +175,7 @@ function useEditorState() {
   }, [mediaIds]);
 
   /* ---------- playback ---------- */
-  const playback: PlaybackApi = usePlayback(videoRef, musicRef, extraVideos);
+  const playback: PlaybackApi = usePlayback(videoRef, musicRef, extraVideos, twinVideos);
   /** Voice enhancer A/B: true plays the untouched sound (not saved). */
   const [voiceOriginal, setVoiceOriginal] = useState(false);
   /** Full-screen export screen (null = closed). */
@@ -629,7 +631,7 @@ function useEditorState() {
     toast, dismiss, dialog,
     settings, setSettings, presets, setPresets, theme, setTheme, ready,
     project, doc, meta, undo, redo,
-    videoRef, musicRef, extraVideos, sourceUrls, file, videoUrl, setVideo, srcDims, setSrcDims, videoDuration, setVideoDuration, waveform, setWaveform,
+    videoRef, musicRef, extraVideos, twinVideos, sourceUrls, file, videoUrl, setVideo, srcDims, setSrcDims, videoDuration, setVideoDuration, waveform, setWaveform,
     musicUrl, musicDuration,
     clips, tl, outWords, lines, aspect, srcDuration,
     playback, timeStore,

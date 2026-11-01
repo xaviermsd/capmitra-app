@@ -159,7 +159,7 @@ Open the **Effects** panel. One click adds an item at the playhead. Everything l
 
 - **Trending**<br>One-click presets such as *Reels hype* (upbeat music, zoom punch on the beat, flash every bar, whoosh on cuts), *Keyword punch*, *Meme edit*, *Festive Gujarati*
 - **Cinematic**<br>Bars, colour looks (warm, teal & orange, vintage, noir…), grain, light leaks, slow zoom
-- **Transitions**<br>Cross dissolve, dip to black, flash, zoom, slide, whip pan, wipe, blur, spin, glitch
+- **Transitions**<br>Cross dissolve, dip to black, flash (white or black), zoom in, zoom out, slide in four directions, whip pan, spin, glitch, blur and wipe, with both clips moving through the cut
 - **Text animations**<br>Caption entrances, including bounce, shake and glitch
 - **Music**<br>10 styles composed by the app: lo-fi, pop, hip-hop, EDM, trap, cinematic, dhol, garba, corporate, piano
 - **Sound effects**<br>26 sounds: whooshes, hits, pops, clicks, UI dings, fun sounds

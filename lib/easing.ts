@@ -19,6 +19,12 @@ export const easeInOutQuart = (x: number) => { x = clamp01(x); return x < 0.5 ? 
 export const easeInOutSine = (x: number) => { x = clamp01(x); return -(Math.cos(Math.PI * x) - 1) / 2; };
 /** Exponential out, rescaled so it ends exactly at 1. */
 export const easeOutExpo = (x: number) => { x = clamp01(x); return x >= 1 ? 1 : (1 - Math.pow(2, -10 * x)) / (1 - Math.pow(2, -10)); };
+/** Exponential ease-in, rescaled so it starts at exactly 0. */
+export const easeInExpo = (x: number) => { x = clamp01(x); return x <= 0 ? 0 : (Math.pow(2, 10 * x) - 1) / (Math.pow(2, 10) - 1); };
+/** Exponential ease-in-out: slow start, a very fast middle, slow landing. */
+export const easeInOutExpo = (x: number) => { x = clamp01(x); return x < 0.5 ? easeInExpo(x * 2) / 2 : 1 - easeInExpo(2 - x * 2) / 2; };
+/** Slope of easeInOutExpo, normalised so the peak (the middle) is 1. */
+export const easeInOutExpoSpeed = (x: number) => { x = clamp01(x); const u = x < 0.5 ? x * 2 : 2 - x * 2; return u <= 0 ? 0 : Math.pow(2, 10 * u - 10); };
 export const smoothstep = (x: number) => { x = clamp01(x); return x * x * (3 - 2 * x); };
 /** Smoothstep between two edges. */
 export const ramp = (a: number, b: number, x: number) => smoothstep((x - a) / (b - a));

@@ -1,8 +1,7 @@
 import { describe, expect, it } from "vitest";
 import * as E from "@/lib/easing";
 import {
-  coverScale, defaultDuration, dipAmount, edgeKey, edgeRequests, mixIn, pushTravel, spinAngles, throughSpeed, throughTravel,
-  TRANSITION_META, transitionGain, transitionHalf, transitionProgress, zoomScales,
+  coverScale, covers, defaultDuration, dipAmount, FLASH_HOLD, TRANSITION_META, transitionGain, transitionHalf, transitionLayout, transitionProgress, ZOOM_PUNCH,
 } from "@/lib/transitions";
 import { buildTimeline, transitionAt } from "@/lib/edl";
 import { entrance, exitFactor, REST, wordPop } from "@/lib/animation";
@@ -88,93 +87,153 @@ describe("transition timing", () => {
 });
 
 describe("transition motion", () => {
-  it("moves through the cut at the same speed it arrived", () => {
-    expect(throughTravel(0)).toBe(0);
-    expect(throughTravel(0.5)).toBeCloseTo(1);
-    expect(throughTravel(1)).toBe(2);
-    const e = 1e-4;
-    const before = (throughTravel(0.5) - throughTravel(0.5 - e)) / e;
-    const after = (throughTravel(0.5 + e) - throughTravel(0.5)) / e;
-    expect(after / before).toBeCloseTo(1, 2);
-    expect(throughSpeed(0)).toBe(0);
-    expect(throughSpeed(0.5)).toBe(1);
-    expect(throughSpeed(1)).toBe(0);
-  });
-  it("zoom starts and ends at normal size with no jump, and never shows black edges", () => {
-    expect(zoomScales(0).from).toBe(1);
-    expect(zoomScales(1).to).toBe(1);
-    // matching size on both sides of the cut
-    expect(zoomScales(0.5).from).toBeCloseTo(zoomScales(0.5).to);
-    for (const p of steps(120)) {
-      const z = zoomScales(p);
-      // both pictures stay at full size or larger, so they always cover the frame
-      expect(z.from).toBeGreaterThanOrEqual(1);
-      expect(z.to).toBeGreaterThanOrEqual(1);
-      expect(z.from).toBeLessThan(4);
-    }
-    // frame-to-frame scale change stays small at 30 fps over 0.45 s
-    for (const p of steps(14).slice(1)) {
-      expect(Math.abs(Math.log(zoomScales(p).from / zoomScales(p - 1 / 14).from))).toBeLessThan(0.5);
-      expect(Math.abs(Math.log(zoomScales(p).to / zoomScales(p - 1 / 14).to))).toBeLessThan(0.5);
+  const SIZES: [number, number][] = [[1080, 1920], [1920, 1080], [1080, 1080], [1080, 1350]];
+  /** Corners, edge points and the centre of the frame. */
+  const probes = (W: number, H: number) => {
+    const out: [number, number][] = [];
+    for (const fx of [0, 0.02, 0.25, 0.5, 0.75, 0.98, 1]) for (const fy of [0, 0.02, 0.25, 0.5, 0.75, 0.98, 1]) out.push([fx * W, fy * H]);
+    return out;
+  };
+  const kinds = TRANSITION_META.map((m) => m.kind).filter((k) => k !== "none");
+
+  it("never leaves an edge or corner of the frame uncovered (no black), at any progress or frame shape", () => {
+    for (const kind of kinds) {
+      for (const [W, H] of SIZES) {
+        for (const p of steps(240)) {
+          const l = transitionLayout(kind, p, W, H, p);
+          for (const [x, y] of probes(W, H)) {
+            if (!covers(l, W, H, x, y)) throw new Error(`${kind} ${W}x${H} p=${p.toFixed(3)} uncovered at ${x.toFixed(0)},${y.toFixed(0)}`);
+          }
+        }
+      }
     }
   });
-  it("spin stays within about 14 degrees and comes back to level", () => {
-    for (const p of steps(100)) {
-      const a = spinAngles(p);
-      expect(Math.abs(a.from)).toBeLessThanOrEqual((28 * Math.PI) / 180 + 1e-9);
-      expect(Math.abs(a.to)).toBeLessThanOrEqual((28 * Math.PI) / 180 + 1e-9);
+
+  it("only the dips and the black flash go to black, and they go all the way", () => {
+    for (const kind of kinds) {
+      const peak = Math.max(...steps(200).map((p) => {
+        const w = transitionLayout(kind, p, 1080, 1920).wash;
+        return w && w.color === "#000000" ? w.alpha : 0;
+      }));
+      if (kind === "dip-black" || kind === "flash-black") expect(peak, kind).toBe(1);
+      else expect(peak, kind).toBe(0);
     }
-    expect(spinAngles(0).from).toBe(0);
-    expect(spinAngles(1).to).toBe(0);
   });
-  it("push transitions keep both clips edge to edge, so no gap ever opens", () => {
-    for (const whip of [false, true]) {
+
+  it("flash holds a pure white frame across the cut and clears completely", () => {
+    const at = (p: number) => transitionLayout("dip-white", p, 1080, 1920).wash!;
+    expect(at(0).alpha).toBe(0);
+    expect(at(1).alpha).toBe(0);
+    for (const p of [FLASH_HOLD[0], 0.45, 0.5, 0.55, FLASH_HOLD[1]]) {
+      expect(at(p).alpha).toBe(1);
+      expect(at(p).color).toBe("#FFFFFF");
+    }
+    // the hold lasts one or two frames at 30 fps for the default length
+    const hold = (FLASH_HOLD[1] - FLASH_HOLD[0]) * defaultDuration("dip-white");
+    expect(hold).toBeGreaterThan(1 / 30);
+    expect(hold).toBeLessThan(2.2 / 30);
+  });
+
+  it("zoom punches in to about 2.2x and lands back at normal size, never below it", () => {
+    const sc = (p: number) => transitionLayout("zoom", p, 1080, 1920).layers.map((l) => l.scale);
+    expect(sc(0)).toEqual([1]);
+    expect(sc(1)).toEqual([1]);
+    expect(Math.max(...sc(0.49))).toBeGreaterThan(1.8);
+    expect(Math.max(...sc(0.51))).toBeGreaterThan(1.8);
+    for (const p of steps(200)) for (const s of sc(p)) {
+      expect(s).toBeGreaterThanOrEqual(1);
+      expect(s).toBeLessThanOrEqual(ZOOM_PUNCH + 1e-9);
+    }
+    // blur is strongest at the cut
+    const blurAt = (p: number) => transitionLayout("zoom", p, 1080, 1920).blur;
+    expect(blurAt(0.5)).toBeGreaterThan(blurAt(0.3));
+    expect(blurAt(0.5)).toBeGreaterThan(blurAt(0.7));
+  });
+
+  it("spin turns a full 90 degrees each side, always at the exact cover scale", () => {
+    for (const [W, H] of SIZES) {
+      let maxRot = 0;
+      for (const p of steps(300)) {
+        for (const l of transitionLayout("spin", p, W, H).layers) {
+          maxRot = Math.max(maxRot, Math.abs(l.rot));
+          expect(l.scale).toBeCloseTo(coverScale(l.rot, W, H), 9);
+        }
+      }
+      expect(maxRot).toBeGreaterThan((85 * Math.PI) / 180);
+    }
+    const first = transitionLayout("spin", 0, 1080, 1920).layers[0];
+    const last = transitionLayout("spin", 1, 1080, 1920).layers[0];
+    expect(Math.abs(first.rot) + Math.abs(last.rot)).toBe(0);
+    expect([first.scale, last.scale]).toEqual([1, 1]);
+  });
+
+  it("cover scale is the exact minimum: every rotated corner reaches the frame, and no less would", () => {
+    for (const [W, H] of SIZES) {
+      for (let deg = 0; deg <= 90; deg += 1) {
+        const a = (deg * Math.PI) / 180;
+        const s = coverScale(a, W, H);
+        const l = { layers: [{ who: "from" as const, scale: s, rot: a, dx: 0, dy: 0, alpha: 1 }], motionBlur: 0, horiz: true, blur: 0, bright: 1, wash: null };
+        for (const [x, y] of probes(W, H)) expect(covers(l, W, H, x, y), `${W}x${H} ${deg}deg`).toBe(true);
+        if (deg > 0) {
+          const less = { ...l, layers: [{ ...l.layers[0], scale: s * 0.99 }] };
+          expect(probes(W, H).every(([x, y]) => covers(less, W, H, x, y)), `${W}x${H} ${deg}deg at 0.99x`).toBe(false);
+        }
+      }
+    }
+    // worst case for a 9:16 frame is about 2.04
+    const worst = Math.max(...Array.from({ length: 91 }, (_, d) => coverScale((d * Math.PI) / 180, 1080, 1920)));
+    expect(worst).toBeGreaterThan(2.0);
+    expect(worst).toBeLessThan(2.1);
+  });
+
+  it("push transitions travel edge to edge in all four directions, with no gap or overlap", () => {
+    const dirs = { "slide-left": [-1, 0], "slide-right": [1, 0], "slide-up": [0, -1], "slide-down": [0, 1], whip: [-1, 0] } as const;
+    for (const [kind, [sx, sy]] of Object.entries(dirs)) {
+      const W = 1080, H = 1920;
       let last = -1;
       for (const p of steps(200)) {
-        const e = pushTravel(p, whip);
-        expect(e).toBeGreaterThanOrEqual(last);
-        last = e;
-        const W = 1080;
-        const aLeft = -e * W, aRight = aLeft + W, bLeft = aRight, bRight = bLeft + W;
-        expect(aLeft).toBeLessThanOrEqual(0);
-        expect(bRight).toBeGreaterThanOrEqual(W);
-        expect(bLeft - aRight).toBe(0);
+        const [a, b] = transitionLayout(kind as keyof typeof dirs, p, W, H).layers;
+        const travel = sx ? a.dx / (sx * W) : a.dy / (sy * H);
+        expect(travel, kind).toBeGreaterThanOrEqual(last - 1e-12);
+        last = travel;
+        // the incoming picture sits exactly one frame behind the outgoing one
+        expect(sx ? a.dx - b.dx : a.dy - b.dy, kind).toBeCloseTo(sx ? sx * W : sy * H, 9);
       }
-      expect(pushTravel(0, whip)).toBe(0);
-      expect(pushTravel(1, whip)).toBe(1);
+      expect(last, kind).toBeCloseTo(1, 9);
     }
+    // the motion blur is strongest mid-push and gone at both ends
+    const mb = (p: number) => transitionLayout("slide-left", p, 1080, 1920).motionBlur;
+    expect(mb(0)).toBeLessThan(1);
+    expect(mb(1)).toBeLessThan(1);
+    expect(mb(0.5)).toBeGreaterThan(150);
+    expect(transitionLayout("whip", 0.5, 1080, 1920).motionBlur).toBeGreaterThan(mb(0.5) * 2);
   });
-  it("cross-fade weights ramp smoothly from 0 to 1", () => {
-    expect(mixIn(0.39, 0.4, 0.6)).toBe(0);
-    expect(mixIn(0.5, 0.4, 0.6)).toBeCloseTo(0.5);
-    expect(mixIn(0.61, 0.4, 0.6)).toBe(1);
+
+  it("glitch flickers between both clips for two or three frames at the cut", () => {
+    const fps = 30, dur = defaultDuration("glitch"), cut = 5;
+    const seq: string[] = [];
+    for (let f = Math.ceil((cut - dur / 2) * fps); f < (cut + dur / 2) * fps; f++) {
+      const t = f / fps;
+      seq.push(transitionLayout("glitch", (t - (cut - dur / 2)) / dur, 1080, 1920, t).layers[0].who);
+    }
+    expect(seq[0]).toBe("from");
+    expect(seq[seq.length - 1]).toBe("to");
+    let swaps = 0;
+    for (let i = 1; i < seq.length; i++) if (seq[i] !== seq[i - 1]) swaps++;
+    expect(swaps).toBeGreaterThanOrEqual(2);
   });
-  it("cover scale keeps a rotated picture filling the frame", () => {
-    expect(coverScale(0, 1080, 1920)).toBe(1);
-    expect(coverScale(Math.PI / 12, 1080, 1920)).toBeGreaterThan(1.4);
-    expect(coverScale(Math.PI / 12, 1920, 1080)).toBeCloseTo(coverScale(Math.PI / 12, 1080, 1920));
-  });
+
   it("only ducks the sound briefly at the cut, except for a dip to black", () => {
     expect(transitionGain("fade", 5, 5, 0.25)).toBe(0);
     expect(transitionGain("fade", 4.9, 5, 0.25)).toBe(1);
     expect(transitionGain("dip-black", 4.9, 5, 0.3)).toBeLessThan(0.5);
     expect(transitionGain("dip-black", 4.69, 5, 0.3)).toBe(1);
   });
-});
 
-describe("edge frames", () => {
-  it("asks for the last frame before a transition and the first frame after it, once each", () => {
-    const clips: Clip[] = [
-      v("a", 0, 5),
-      { ...v("b", 10, 15), transition: { kind: "fade", duration: 0.5 } },
-      { id: "c", kind: "card", duration: 2, background: { kind: "color", color: "#000" }, transition: { kind: "zoom", duration: 0.4 } },
-      v("d", 20, 25),
-      { ...v("e", 30, 35, { sourceId: "x" }), transition: { kind: "wipe", duration: 0.5 } },
-    ];
-    const req = edgeRequests(clips).map((r) => `${r.clip.id}:${r.edge}`);
-    expect(req).toEqual(["a:end", "b:start", "b:end", "d:end", "e:start"]);
-    expect(edgeKey(clips[4] as VideoClip, "start")).toBe("x@30.000");
-    expect(edgeKey(clips[0] as VideoClip, "end")).toBe("main@4.960");
+  it("keeps old projects working: every original transition id still exists", () => {
+    for (const k of ["none", "fade", "dip-black", "dip-white", "zoom", "slide-left", "slide-up", "wipe", "blur", "spin", "glitch", "whip"] as const) {
+      expect(TRANSITION_META.some((m) => m.kind === k), k).toBe(true);
+    }
   });
 });
 

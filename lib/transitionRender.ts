@@ -6,8 +6,8 @@
  * real time. Timing and curves come from lib/transitions.ts and lib/easing.ts.
  */
 import type { TransitionKind } from "./project";
-import { bell, clamp01, easeInOutCubic, easeInOutSine, easeInQuad, easeOutCubic, lerp, ramp } from "./easing";
-import { mixIn, pushTravel, spinAngles, throughSpeed, zoomScales } from "./transitions";
+import { bell, clamp01, easeInOutCubic, lerp } from "./easing";
+import { coverScale, transitionLayout, type Pose } from "./transitions";
 
 type Ctx = CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D;
 type AnyCanvas = HTMLCanvasElement | OffscreenCanvas;
@@ -49,56 +49,70 @@ function layer(name: string, W: number, H: number, draw: Draw): AnyCanvas {
 
 /* ---------- placing a picture ---------- */
 
-interface Place { scale?: number; rot?: number; dx?: number; dy?: number; alpha?: number; mirror?: boolean }
-
-/**
- * Draw a full-frame picture scaled and rotated about the centre. With
- * `mirror`, the edges are filled with mirrored copies (like the mirror-edge
- * trick editors use), so shrinking or rotating never shows empty corners.
- */
-function put(ctx: Ctx, img: AnyCanvas, W: number, H: number, o: Place = {}): void {
-  const s = o.scale ?? 1;
-  const rot = o.rot ?? 0;
+/** Draw a full-frame picture placed by a pose (scale and rotation about the centre, then offset). */
+function put(ctx: Ctx, img: AnyCanvas, W: number, H: number, scale: number, rot: number, dx: number, dy: number): void {
   ctx.save();
-  if (o.alpha !== undefined) ctx.globalAlpha *= clamp01(o.alpha);
-  ctx.translate(W / 2 + (o.dx ?? 0), H / 2 + (o.dy ?? 0));
+  // whole pixels, so two pictures pushed edge to edge never leave a hairline seam
+  ctx.translate(Math.round(W / 2 + dx), Math.round(H / 2 + dy));
   if (rot) ctx.rotate(rot);
-  if (s !== 1) ctx.scale(s, s);
-  const src = img as CanvasImageSource;
-  if (o.mirror && (s < 0.999 || rot)) {
-    // reach of the frame from the centre, in picture units
-    const reach = Math.hypot(W, H) / 2 / s;
-    for (let j = -1; j <= 1; j++) {
-      for (let i = -1; i <= 1; i++) {
-        if (!rot && (Math.abs(i) * W - W / 2 > W / 2 / s || Math.abs(j) * H - H / 2 > H / 2 / s)) continue;
-        if (rot && Math.hypot(i * W, j * H) - Math.hypot(W, H) / 2 > reach) continue;
-        ctx.save();
-        ctx.translate(i * W, j * H);
-        if (i || j) ctx.scale(i ? -1 : 1, j ? -1 : 1);
-        ctx.drawImage(src, -W / 2, -H / 2, W, H);
-        ctx.restore();
-      }
-    }
-  } else {
-    ctx.drawImage(src, -W / 2, -H / 2, W, H);
-  }
+  if (scale !== 1) ctx.scale(scale, scale);
+  ctx.drawImage(img as CanvasImageSource, -W / 2, -H / 2, W, H);
   ctx.restore();
 }
 
 /**
- * Zoom / spin motion blur: several copies spread along the motion, averaged
- * (copy k drawn at 1/(k+1) so all copies weigh the same). The first copy must
- * cover the frame, which put() with `mirror` guarantees.
+ * One pose, with its zoom or rotational blur: copies spread along the motion
+ * and averaged (copy k drawn at 1/(k+1), so all copies weigh the same). Zoom
+ * copies only ever grow from the pose's scale, and every rotated copy of a
+ * picture that covers the frame gets its own cover scale, so blurred copies
+ * never bring an edge into view.
  */
-function smear(ctx: Ctx, img: AnyCanvas, W: number, H: number, scale: number, rot: number, strength: number, zoomSpread: number, rotSpread: number, mirror: boolean): void {
-  const n = 1 + Math.round(7 * clamp01(strength));
-  for (let k = 0; k < n; k++) {
-    const f = n === 1 ? 0 : k / (n - 1) - 0.5;
+function drawPose(ctx: Ctx, img: AnyCanvas, W: number, H: number, ps: Pose): void {
+  const zs = ps.zoomBlur ?? 0;
+  const rs = ps.spinBlur ?? 0;
+  const strength = clamp01(Math.max(zs, rs) / 0.5);
+  const n = 1 + Math.round(11 * strength);
+  const covering = ps.scale >= coverScale(ps.rot, W, H) - 1e-6;
+  const draw = (x: Ctx) => {
+    if (ps.shadow && ps.scale < 0.999) {
+      x.save();
+      x.translate(Math.round(W / 2 + ps.dx), Math.round(H / 2 + ps.dy));
+      x.rotate(ps.rot);
+      x.shadowColor = "rgba(0,0,0,0.55)";
+      x.shadowBlur = Math.min(W, H) * 0.06;
+      x.fillStyle = "#000";
+      const sw = W * ps.scale, sh = H * ps.scale;
+      x.fillRect(-sw / 2, -sh / 2, sw, sh);
+      x.restore();
+    }
+    for (let k = 0; k < n; k++) {
+      const f = n === 1 ? 0 : k / (n - 1);
+      const rot = ps.rot + rs * (f - 0.5);
+      let scale = ps.scale * (1 + zs * f);
+      if (covering && rs) scale = Math.max(scale, coverScale(rot, W, H));
+      x.save();
+      x.globalAlpha = 1 / (k + 1);
+      put(x, img, W, H, scale, rot, ps.dx, ps.dy);
+      x.restore();
+    }
+  };
+  if (ps.alpha >= 0.999) { draw(ctx); return; }
+  if (ps.alpha <= 0.001) return;
+  if (n === 1 && !ps.shadow) {
     ctx.save();
-    ctx.globalAlpha = 1 / (k + 1);
-    put(ctx, img, W, H, { scale: scale * (1 + f * zoomSpread * strength), rot: rot + f * rotSpread * strength, mirror });
+    ctx.globalAlpha = ps.alpha;
+    put(ctx, img, W, H, ps.scale, ps.rot, ps.dx, ps.dy);
     ctx.restore();
+    return;
   }
+  // blurred copies fade as one picture
+  const u = scratch("tr-u", W, H);
+  u.x.clearRect(0, 0, W, H);
+  draw(u.x);
+  ctx.save();
+  ctx.globalAlpha = ps.alpha;
+  ctx.drawImage(u.c as CanvasImageSource, 0, 0, W, H);
+  ctx.restore();
 }
 
 /**
@@ -135,35 +149,38 @@ function blurInto(ctx: Ctx, img: AnyCanvas, W: number, H: number, radius: number
 }
 
 /**
- * Directional (motion) blur: squash the picture along the motion with a
- * smoothing downscale, then stretch it back. Smooth streaks, no ghost copies.
+ * Directional (motion) blur: a gentle squash along the motion with a smoothing
+ * downscale (a clean box filter), stretched back, then averaged copies spread
+ * over the blur length. The squash is kept small so the stretch never shows
+ * blocks, and the copies sit close enough on the soft picture to read as one streak.
  */
 function dirBlur(ctx: Ctx, img: AnyCanvas, W: number, H: number, len: number, horiz: boolean): void {
   if (len < 1.5) { ctx.drawImage(img as CanvasImageSource, 0, 0, W, H); return; }
-  const k = Math.min(32, len / 6);
-  const sw = horiz ? Math.max(4, Math.ceil(W / k)) : W;
-  const sh = horiz ? H : Math.max(4, Math.ceil(H / k));
-  // halve step by step: each bilinear halving is a true 2-pixel average, so the
-  // squash is a clean box filter instead of skipping pixels
+  const k = Math.max(1, Math.min(8, len / 10));
   let src: AnyCanvas = img;
-  let cw = W, ch = H, flip = 0;
-  while (horiz ? cw / 2 >= sw : ch / 2 >= sh) {
-    cw = horiz ? Math.ceil(cw / 2) : cw;
-    ch = horiz ? ch : Math.ceil(ch / 2);
-    const t = scratch(`dir-${flip++}`, cw, ch); // step n always has the same size, so canvases are reused
-    t.x.drawImage(src as CanvasImageSource, 0, 0, cw, ch);
-    src = t.c;
+  if (k >= 2) {
+    const sw = horiz ? Math.max(4, Math.ceil(W / k)) : W;
+    const sh = horiz ? H : Math.max(4, Math.ceil(H / k));
+    let cw = W, ch = H, step = 0;
+    // halve step by step: each bilinear halving is a true 2-pixel average
+    while (horiz ? cw / 2 >= sw : ch / 2 >= sh) {
+      cw = horiz ? Math.ceil(cw / 2) : cw;
+      ch = horiz ? ch : Math.ceil(ch / 2);
+      const t = scratch(`dir-${horiz ? "h" : "v"}${step++}`, cw, ch);
+      t.x.drawImage(src as CanvasImageSource, 0, 0, cw, ch);
+      src = t.c;
+    }
   }
-
-  // three overlapping copies along the motion smooth out the stretch (averaged: 1, 1/2, 1/3)
-  const d = len / 6;
   ctx.save();
   ctx.imageSmoothingQuality = "high";
-  const offs = [0, -d, d];
-  offs.forEach((o, i) => {
-    ctx.globalAlpha = 1 / (i + 1);
+  // the unshifted picture first, so the edges are always covered
+  ctx.drawImage(src as CanvasImageSource, 0, 0, W, H);
+  const n = Math.max(2, Math.min(14, Math.round(len / (k * 1.5))));
+  for (let i = 0; i < n; i++) {
+    const o = (i / (n - 1) - 0.5) * len;
+    ctx.globalAlpha = 1 / (i + 2);
     ctx.drawImage(src as CanvasImageSource, horiz ? o : 0, horiz ? 0 : o, W, H);
-  });
+  }
   ctx.restore();
 }
 
@@ -185,216 +202,117 @@ export interface TransitionDraw {
 
 /**
  * Composite a transition onto `ctx` (the full W x H frame). `drawFrom` and
- * `drawTo` each paint one clip's picture onto a full-frame context.
+ * `drawTo` each paint one clip's picture onto a full-frame context. Where the
+ * pictures go comes from transitionLayout(); this only paints it.
  */
 export function drawTransition(ctx: Ctx, W: number, H: number, tr: TransitionDraw, drawFrom: Draw, drawTo: Draw): void {
   const p = clamp01(tr.p);
+  const L = transitionLayout(tr.kind, p, W, H, tr.t);
+  const pics: { from?: AnyCanvas; to?: AnyCanvas } = {};
+  const pic = (who: Pose["who"]) => (pics[who] ??= layer(who === "from" ? "tr-a" : "tr-b", W, H, who === "from" ? drawFrom : drawTo));
+
+  if (tr.kind === "wipe") { wipe(ctx, W, H, p, pic("from"), pic("to")); return; }
+  if (tr.kind === "glitch") { glitch(ctx, W, H, p, tr.t, pic(L.layers[0].who), pic(L.layers[0].who === "from" ? "to" : "from")); return; }
+
+  const motion = L.motionBlur >= 1.5;
+  const soft = L.blur >= 0.75 || L.bright > 1.001;
+  const comp = motion || soft ? scratch("tr-t", W, H) : null;
+  const x = comp ? comp.x : ctx;
+  x.fillStyle = "#000";
+  x.fillRect(0, 0, W, H);
+  for (const ps of L.layers) drawPose(x, pic(ps.who), W, H, ps);
+
+  if (comp) {
+    let src: AnyCanvas = comp.c;
+    if (motion) {
+      const m = scratch("tr-m", W, H);
+      dirBlur(m.x, src, W, H, L.motionBlur, L.horiz);
+      src = m.c;
+    }
+    if (soft) blurInto(ctx, src, W, H, L.blur, L.bright > 1.001 ? `brightness(${L.bright.toFixed(3)})` : "");
+    else ctx.drawImage(src as CanvasImageSource, 0, 0, W, H);
+  }
+
+  if (L.wash && L.wash.alpha > 0.001) {
+    ctx.save();
+    ctx.globalAlpha = L.wash.alpha;
+    ctx.fillStyle = L.wash.color;
+    ctx.fillRect(0, 0, W, H);
+    ctx.restore();
+  }
+}
+
+/** Soft-edged diagonal wipe, left to right, with a feathered moving edge. */
+function wipe(ctx: Ctx, W: number, H: number, p: number, a: AnyCanvas, b: AnyCanvas): void {
+  const ang = (14 * Math.PI) / 180;
+  const dx = Math.cos(ang), dy = Math.sin(ang);
+  const band = 0.18 * Math.max(W, H);
+  const us = [0, W * dx, H * dy, W * dx + H * dy];
+  const u0 = Math.min(...us) - band, u1 = Math.max(...us) + band;
+  const u = lerp(u0, u1, easeInOutCubic(p));
+  ctx.drawImage(a as CanvasImageSource, 0, 0, W, H);
+  const m = scratch("tr-t", W, H);
+  m.x.drawImage(b as CanvasImageSource, 0, 0, W, H);
+  const g = m.x.createLinearGradient((u - band / 2) * dx, (u - band / 2) * dy, (u + band / 2) * dx, (u + band / 2) * dy);
+  g.addColorStop(0, "rgba(0,0,0,1)");
+  g.addColorStop(1, "rgba(0,0,0,0)");
+  m.x.globalCompositeOperation = "destination-in";
+  m.x.fillStyle = g;
+  m.x.fillRect(0, 0, W, H);
+  m.x.globalCompositeOperation = "source-over";
+  ctx.drawImage(m.c as CanvasImageSource, 0, 0, W, H);
+}
+
+/** RGB split, torn slices and a few frames flickering between both clips at the cut. */
+function glitch(ctx: Ctx, W: number, H: number, p: number, t: number, main: AnyCanvas, other: AnyCanvas): void {
+  const g = Math.pow(bell(p), 1.4);
+  const seed = Math.floor(t * 30);
   const short = Math.min(W, H);
-  const A = () => layer("tr-a", W, H, drawFrom);
-  const B = () => layer("tr-b", W, H, drawTo);
-
-  switch (tr.kind) {
-    case "fade": {
-      // true cross-dissolve: the new picture fades in over the old one
-      put(ctx, A(), W, H);
-      put(ctx, B(), W, H, { alpha: easeInOutSine(p) });
-      return;
+  const base = scratch("tr-t", W, H);
+  base.x.drawImage(main as CanvasImageSource, 0, 0, W, H);
+  if (g > 0.03) {
+    const n = 3 + Math.floor(hash(seed) * 7 * g + 4 * g);
+    for (let i = 0; i < n; i++) {
+      const y = Math.floor(hash(seed * 3.1 + i) * H);
+      const h = Math.ceil((0.012 + hash(seed * 7.7 + i) * 0.09) * H);
+      const shift = Math.round((hash(seed * 5.3 + i) - 0.5) * W * 0.3 * g);
+      const src = Math.abs(p - 0.5) < 0.2 && hash(seed * 9.1 + i) > 0.45 ? other : main;
+      // the torn slice wraps around, so its ends are picture too, never a gap
+      base.x.drawImage(src as CanvasImageSource, 0, y, W, h, shift, y, W, h);
+      base.x.drawImage(src as CanvasImageSource, 0, y, W, h, shift - Math.sign(shift || 1) * W, y, W, h);
     }
-
-    case "dip-black": {
-      // down to black, a breath of black, back up
-      const k = p < 0.5 ? easeInOutSine(p / 0.44) : easeInOutSine((1 - p) / 0.44);
-      put(ctx, p < 0.5 ? A() : B(), W, H);
-      ctx.save();
-      ctx.globalAlpha = clamp01(k);
-      ctx.fillStyle = "#000";
-      ctx.fillRect(0, 0, W, H);
-      ctx.restore();
-      return;
+  }
+  const d = short * 0.04 * g;
+  if (d < 0.5) { ctx.drawImage(base.c as CanvasImageSource, 0, 0, W, H); return; }
+  // red and cyan copies offset sideways, each scaled just enough to keep covering the frame
+  const k = 1 + (2.2 * d) / W;
+  const sw = W * k, sh = H * k;
+  const red = scratch("tr-r", W, H);
+  red.x.drawImage(base.c as CanvasImageSource, (W - sw) / 2 - d, (H - sh) / 2, sw, sh);
+  red.x.globalCompositeOperation = "multiply";
+  red.x.fillStyle = "#FF0000";
+  red.x.fillRect(0, 0, W, H);
+  const cyan = scratch("tr-c", W, H);
+  cyan.x.drawImage(base.c as CanvasImageSource, (W - sw) / 2 + d, (H - sh) / 2, sw, sh);
+  cyan.x.globalCompositeOperation = "multiply";
+  cyan.x.fillStyle = "#00FFFF";
+  cyan.x.fillRect(0, 0, W, H);
+  ctx.save();
+  ctx.fillStyle = "#000";
+  ctx.fillRect(0, 0, W, H);
+  ctx.globalCompositeOperation = "lighter";
+  ctx.drawImage(red.c as CanvasImageSource, 0, 0, W, H);
+  ctx.drawImage(cyan.c as CanvasImageSource, 0, 0, W, H);
+  ctx.restore();
+  if (g > 0.35) {
+    // a couple of bright scan bars
+    ctx.save();
+    ctx.globalCompositeOperation = "screen";
+    for (let i = 0; i < 2; i++) {
+      ctx.globalAlpha = 0.35 * g;
+      ctx.fillStyle = hash(seed * 1.7 + i) > 0.5 ? "#00E5FF" : "#FF2EA6";
+      ctx.fillRect(0, hash(seed * 2.2 + i * 5) * H, W, H * (0.004 + 0.014 * hash(seed * 4.4 + i)));
     }
-
-    case "dip-white": {
-      // a quick bloom of light that hides the cut: fast attack, softer decay
-      const b = p < 0.5 ? easeInQuad(ramp(0.12, 0.5, p)) : 1 - easeOutCubic(ramp(0.5, 0.95, p));
-      const base = scratch("tr-t", W, H);
-      put(base.x, A(), W, H);
-      const mix = mixIn(p, 0.44, 0.56);
-      if (mix > 0) put(base.x, B(), W, H, { alpha: mix });
-      ctx.save();
-      ctx.filter = b > 0.01 ? `brightness(${(1 + 1.1 * b).toFixed(3)}) saturate(${(1 - 0.35 * b).toFixed(3)})` : "none";
-      ctx.drawImage(base.c as CanvasImageSource, 0, 0, W, H);
-      ctx.restore();
-      if (b > 0.01) {
-        // glow: a blurred copy added on top
-        ctx.save();
-        ctx.globalCompositeOperation = "screen";
-        ctx.globalAlpha = 0.85 * b;
-        blurInto(ctx, base.c, W, H, short * 0.05 * b, "brightness(1.4)");
-        ctx.restore();
-        ctx.save();
-        ctx.globalAlpha = 0.7 * Math.pow(b, 1.6);
-        ctx.fillStyle = "#FFFFFF";
-        ctx.fillRect(0, 0, W, H);
-        ctx.restore();
-      }
-      return;
-    }
-
-    case "zoom": {
-      // the old clip pushes in faster and faster to the cut; the new one starts
-      // pushed in just as far and eases back out. Radial blur peaks at the cut.
-      const z = zoomScales(p);
-      const v = throughSpeed(p);
-      const mix = mixIn(p, 0.4, 0.6);
-      const tmp = scratch("tr-t", W, H);
-      if (mix < 1) smear(tmp.x, A(), W, H, z.from, 0, v, 0.14, 0, false);
-      if (mix > 0) {
-        if (mix >= 1) smear(tmp.x, B(), W, H, z.to, 0, v, 0.14, 0, false);
-        else {
-          const u = scratch("tr-u", W, H);
-          smear(u.x, B(), W, H, z.to, 0, v, 0.14, 0, false);
-          put(tmp.x, u.c, W, H, { alpha: mix });
-        }
-      }
-      blurInto(ctx, tmp.c, W, H, short * 0.01 * v);
-      return;
-    }
-
-    case "spin": {
-      // a restrained spin: about 14 degrees each side of the cut with a gentle
-      // push-in, rotational blur, mirrored edges so no corners go empty
-      const ang = spinAngles(p);
-      const v = throughSpeed(p);
-      const zoom = 1 + 0.12 * bell(p);
-      const mix = mixIn(p, 0.4, 0.6);
-      const spread = 0.12;
-      const tmp = scratch("tr-t", W, H);
-      if (mix < 1) smear(tmp.x, A(), W, H, zoom, ang.from, v, 0.03, spread, true);
-      if (mix > 0) {
-        if (mix >= 1) smear(tmp.x, B(), W, H, zoom, ang.to, v, 0.03, spread, true);
-        else {
-          const u = scratch("tr-u", W, H);
-          smear(u.x, B(), W, H, zoom, ang.to, v, 0.03, spread, true);
-          put(tmp.x, u.c, W, H, { alpha: mix });
-        }
-      }
-      blurInto(ctx, tmp.c, W, H, short * 0.014 * v);
-      return;
-    }
-
-    case "slide-left":
-    case "slide-up":
-    case "whip": {
-      // push: both clips travel together, edge to edge, so there's never a gap
-      const horiz = tr.kind !== "slide-up";
-      const span = horiz ? W : H;
-      const whip = tr.kind === "whip";
-      const e = pushTravel(p, whip);
-      const x = p < 0.5 ? p * 2 : 2 - p * 2;
-      const v = whip ? Math.pow(x, 3) : x * x; // normalised speed, peak at the cut
-      const off = -e * span;
-      const tmp = scratch("tr-t", W, H);
-      if (horiz) { put(tmp.x, A(), W, H, { dx: off }); put(tmp.x, B(), W, H, { dx: off + W }); }
-      else { put(tmp.x, A(), W, H, { dy: off }); put(tmp.x, B(), W, H, { dy: off + H }); }
-      // directional motion blur along the move, strongest at the cut
-      dirBlur(ctx, tmp.c, W, H, (whip ? 0.14 : 0.035) * span * v, horiz);
-      return;
-    }
-
-    case "wipe": {
-      // soft-edged diagonal wipe, left to right
-      const ang = (12 * Math.PI) / 180;
-      const dx = Math.cos(ang), dy = Math.sin(ang);
-      const band = 0.22 * Math.max(W, H) * dx;
-      const us = [0, W * dx, H * dy, W * dx + H * dy];
-      const u0 = Math.min(...us) - band, u1 = Math.max(...us) + band;
-      const u = lerp(u0, u1, easeInOutCubic(p));
-      put(ctx, A(), W, H);
-      const b = B();
-      const bx = (b.getContext("2d") as Ctx);
-      const g = bx.createLinearGradient((u - band / 2) * dx, (u - band / 2) * dy, (u + band / 2) * dx, (u + band / 2) * dy);
-      g.addColorStop(0, "rgba(0,0,0,1)");
-      g.addColorStop(1, "rgba(0,0,0,0)");
-      bx.save();
-      bx.globalCompositeOperation = "destination-in";
-      bx.fillStyle = g;
-      bx.fillRect(0, 0, W, H);
-      bx.restore();
-      put(ctx, b, W, H);
-      return;
-    }
-
-    case "blur": {
-      // defocus out of one shot and into the next, with a slight push-in
-      const r = short * 0.055 * bell(p);
-      const zoom = 1 + 0.05 * bell(p);
-      const mix = mixIn(p, 0.3, 0.7);
-      const base = scratch("tr-t", W, H);
-      put(base.x, A(), W, H, { scale: zoom });
-      if (mix > 0) put(base.x, B(), W, H, { scale: zoom, alpha: mix });
-      blurInto(ctx, base.c, W, H, r);
-      return;
-    }
-
-    case "glitch": {
-      // short and punchy: RGB split and torn slices, strongest right at the cut
-      const g = Math.pow(bell(p), 2.2);
-      const seed = Math.floor(tr.t * 24);
-      const a = A(), b = B();
-      const main = p < 0.5 ? a : b;
-      const other = p < 0.5 ? b : a;
-      const base = scratch("tr-t", W, H);
-      base.x.drawImage(main as CanvasImageSource, 0, 0);
-      if (g > 0.05) {
-        const n = 3 + Math.floor(hash(seed) * 6 * g + 2 * g);
-        for (let i = 0; i < n; i++) {
-          const y = hash(seed * 3.1 + i) * H;
-          const h = (0.015 + hash(seed * 7.7 + i) * 0.08) * H;
-          const shift = (hash(seed * 5.3 + i) - 0.5) * W * 0.16 * g;
-          // near the cut some slices come from the other clip
-          const src = Math.abs(p - 0.5) < 0.14 && hash(seed * 9.1 + i) > 0.5 ? other : main;
-          base.x.drawImage(src as CanvasImageSource, 0, y, W, h, shift, y, W, h);
-        }
-      }
-      const d = short * 0.022 * g;
-      if (d < 0.5) { ctx.drawImage(base.c as CanvasImageSource, 0, 0, W, H); return; }
-      // split into red and cyan, offset them, add them back together
-      const red = scratch("tr-r", W, H);
-      red.x.drawImage(base.c as CanvasImageSource, 0, 0);
-      red.x.globalCompositeOperation = "multiply";
-      red.x.fillStyle = "#FF0000";
-      red.x.fillRect(0, 0, W, H);
-      const cyan = scratch("tr-c", W, H);
-      cyan.x.drawImage(base.c as CanvasImageSource, 0, 0);
-      cyan.x.globalCompositeOperation = "multiply";
-      cyan.x.fillStyle = "#00FFFF";
-      cyan.x.fillRect(0, 0, W, H);
-      ctx.save();
-      ctx.fillStyle = "#000";
-      ctx.fillRect(0, 0, W, H);
-      ctx.globalCompositeOperation = "lighter";
-      ctx.drawImage(red.c as CanvasImageSource, -d, 0, W, H);
-      ctx.drawImage(cyan.c as CanvasImageSource, d * 0.6, 0, W, H);
-      ctx.restore();
-      // a cyan/red edge-fill where the split leaves the border uncovered
-      ctx.save();
-      ctx.globalAlpha = 1;
-      ctx.drawImage(base.c as CanvasImageSource, 0, 0, Math.ceil(d * 0.6) + 1, H, 0, 0, Math.ceil(d * 0.6) + 1, H);
-      ctx.drawImage(base.c as CanvasImageSource, W - Math.ceil(d) - 1, 0, Math.ceil(d) + 1, H, W - Math.ceil(d) - 1, 0, Math.ceil(d) + 1, H);
-      ctx.restore();
-      if (g > 0.4) {
-        ctx.save();
-        ctx.globalCompositeOperation = "screen";
-        ctx.globalAlpha = 0.25 * g;
-        ctx.fillStyle = hash(seed * 1.7) > 0.5 ? "#00E5FF" : "#FF2EA6";
-        ctx.fillRect(0, hash(seed * 2.2) * H, W, H * (0.006 + 0.012 * hash(seed * 4.4)));
-        ctx.restore();
-      }
-      return;
-    }
-
-    default: {
-      put(ctx, p < 0.5 ? A() : B(), W, H);
-    }
+    ctx.restore();
   }
 }

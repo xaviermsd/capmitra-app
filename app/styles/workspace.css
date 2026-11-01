@@ -740,9 +740,16 @@ kbd { display: inline-block; padding: 2px 7px; border-radius: 6px; background: v
 .tr-fade i:last-child { background: linear-gradient(90deg, #C9B8FF, #FFD166 70%); clip-path: inset(0 0 0 20%); }
 .tr-dip-black i:last-child { background: linear-gradient(90deg, #080808, #FFD166); clip-path: inset(0 0 0 35%); }
 .tr-dip-white i:last-child { background: linear-gradient(90deg, #fff, #FFD166); clip-path: inset(0 0 0 35%); }
+.tr-flash-black i:last-child { background: linear-gradient(90deg, #080808 0 30%, #FFD166 75%); clip-path: inset(0 0 0 30%); }
 .tr-zoom i:last-child { clip-path: circle(38% at 70% 50%); }
+.tr-zoom-out i:first-child { clip-path: inset(22% 58% 22% 12%); z-index: 1; box-shadow: 0 0 0 1.5px var(--ink); }
+.tr-zoom-out i:last-child { clip-path: none; }
 .tr-slide-left i:last-child { clip-path: polygon(40% 0, 100% 0, 100% 100%, 60% 100%); }
+.tr-slide-right i:first-child { clip-path: inset(0 0 0 60%); }
+.tr-slide-right i:last-child { clip-path: polygon(0 0, 60% 0, 40% 100%, 0 100%); }
 .tr-slide-up i:last-child { clip-path: inset(45% 0 0 0); }
+.tr-slide-down i:first-child { clip-path: inset(55% 0 0 0); }
+.tr-slide-down i:last-child { clip-path: inset(0 0 55% 0); }
 .tr-wipe i:last-child { clip-path: polygon(55% 0, 100% 0, 100% 100%, 30% 100%); }
 .tr-blur i:last-child { filter: blur(3px); clip-path: inset(0 0 0 40%); }
 .tr-whip i:last-child { background: repeating-linear-gradient(90deg, #FFD166 0 4px, #f5e2a8 4px 7px); clip-path: inset(0 0 0 40%); }

@@ -7,8 +7,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useEditor } from "./EditorContext";
 import { renderFrame, type SourceFrame } from "@/lib/renderFrame";
-import { createEdgeGrabber, type EdgeGrabber } from "@/lib/edgeFrames";
-import { itemAt } from "@/lib/edl";
+import { itemAt, transitionAt } from "@/lib/edl";
 import { outputSize, platformById } from "@/lib/frame";
 import { layerBox } from "@/lib/layers";
 import { makeThumb } from "@/lib/library";
@@ -48,24 +47,15 @@ export function Stage() {
     | null
   >(null);
 
-  /* ---------- edge frames for transitions ---------- */
-  const edgesRef = useRef<EdgeGrabber | null>(null);
-  useEffect(() => {
-    const g = createEdgeGrabber();
-    edgesRef.current = g;
-    return () => { g.dispose(); if (edgesRef.current === g) edgesRef.current = null; };
-  }, []);
-  useEffect(() => {
-    edgesRef.current?.sync(ed.clips, (id) => (id ? ed.sourceUrls[id] ?? null : videoUrl ?? null));
-  }, [ed.clips, ed.sourceUrls, videoUrl]);
-
   /* ---------- render loop ---------- */
   const live = useRef({ doc, lines, tl, selection, showWm: ed.showWm, wmCorner: ed.settings.wmCorner, isEmpty: ed.isEmpty, quality: ed.settings.previewQuality, grid: ed.settings.showGrid });
   live.current = { doc, lines, tl, selection, showWm: ed.showWm, wmCorner: ed.settings.wmCorner, isEmpty: ed.isEmpty, quality: ed.settings.previewQuality, grid: ed.settings.showGrid };
 
+  const hasDrawn = useRef(false);
   useEffect(() => {
     let raf = 0;
     let lastUi = 0;
+    hasDrawn.current = false;
     const tick = (now: number) => {
       const t = playback.tick(now);
       const c = canvasRef.current;
@@ -84,17 +74,22 @@ export function Stage() {
           capBoxRef.current = null;
         } else {
           const it = itemAt(L.tl, t);
-          let src: SourceFrame | null = null;
-          if (it?.clip.kind === "video") {
-            // the main video, or an extra video's own hidden element (image clips draw themselves)
-            const el = it.clip.sourceId ? ed.extraVideos.current.get(it.clip.sourceId) ?? null : hasV ? v : null;
-            if (el && el.videoWidth) src = { image: el, w: el.videoWidth, h: el.videoHeight };
-          }
-          capBoxRef.current = renderFrame(ctx, {
+          // the player lined up on this clip (image clips draw themselves)
+          const src: SourceFrame | null = it?.clip.kind === "video" ? playback.frameFor(it.index) : null;
+          const tr = transitionAt(L.tl, t);
+          const otherIt = tr ? (tr.phase === "out" ? tr.to : tr.from) : null;
+          const pending = (it?.clip.kind === "video" && !src) || (!!otherIt && otherIt.clip.kind === "video" && !playback.frameFor(otherIt.index));
+          c.dataset.pending = pending ? "1" : "0";
+          // timing probe: set window.__capTrace = [] in the console to log every drawn frame
+          const trace = (window as unknown as { __capTrace?: unknown[] }).__capTrace;
+          if (trace) trace.push({ now, t, p: tr ? tr.p : null, pending, live: !!src, ct: src ? (src.image as HTMLVideoElement).currentTime : null, idx: it?.index ?? -1 });
+          // a clip whose player is still finding its frame keeps the last good picture instead of flashing a wrong one
+          if (!(it?.clip.kind === "video" && !src && hasDrawn.current)) capBoxRef.current = renderFrame(ctx, {
             W, H, t, tl: L.tl, frame: L.doc.frame, lines: L.lines, style: L.doc.style, overrides: L.doc.overrides,
             translations: L.doc.translations, layers: L.doc.layers, captionZ: L.doc.captionZ, speakers: L.doc.speakers,
-            watermark: L.showWm ? { corner: L.wmCorner } : null, effects: L.doc.effects, edges: edgesRef.current?.get,
+            watermark: L.showWm ? { corner: L.wmCorner } : null, effects: L.doc.effects, other: (p) => playback.frameFor(p.index),
           }, src);
+          hasDrawn.current = true;
           // safe-zone guide (editor only)
           const plat = platformById(L.doc.frame.platform);
           if (L.doc.frame.showSafeZone && plat.safe) {
@@ -497,6 +492,11 @@ export function Stage() {
         <video key={id} src={url} playsInline preload="auto" className="source-video" muted={!!doc.audio?.muted}
           ref={(el) => { if (el) ed.extraVideos.current.set(id, el); else ed.extraVideos.current.delete(id); }}
           onLoadedMetadata={(e) => { e.currentTarget.playbackRate = playback.rate; }} />
+      ))}
+      {/* a twin player per source, so the next clip is already on its frame at a cut (lib/overlap.ts) */}
+      {[...(videoUrl ? [["main", videoUrl] as const] : []), ...Object.entries(ed.sourceUrls).filter(([id]) => ed.clips.some((c) => c.kind === "video" && c.sourceId === id))].map(([id, url]) => (
+        <video key={`twin-${id}`} src={url} playsInline preload="auto" muted className="source-video" aria-hidden="true"
+          ref={(el) => { if (el) ed.twinVideos.current.set(id, el); else ed.twinVideos.current.delete(id); }} />
       ))}
       {videoUrl ? (
         <video

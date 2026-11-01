@@ -10,10 +10,12 @@ import { composeFrame } from "./frame";
 import { itemAt, transitionAt, type EditTimeline, type Placed } from "./edl";
 import { drawTransition } from "./transitionRender";
 import { drawCaptions, fontString, type CaptionBox } from "./render";
+import { LINGER, lineAt } from "./grouping";
+import { smoothstep } from "./easing";
 import { cutOutPeople } from "./segment";
 import { assetImage, drawLayers } from "./layers";
 import { drawWatermark, type WatermarkCorner } from "./watermark";
-import { CAPTION_Z, type Background, type CardClip, type Layer, type Speaker, type VideoClip } from "./project";
+import { CAPTION_Z, type Background, type CardClip, type Layer, type Speaker } from "./project";
 import { fxStateAt, NO_FX, type FxClip } from "./effects/fx";
 import { applyCamera, drawFxFlash, drawFxOverlays } from "./effects/fxRender";
 import type { CaptionLine, CaptionStyle, FrameSettings, Overrides, Translations } from "./types";
@@ -39,13 +41,14 @@ export interface Scene {
   /** Video effects on the output timeline. */
   effects?: FxClip[];
   /**
-   * First or last frame of a video clip, for the clip that isn't playing
-   * during a transition. Without it that side of the transition shows black.
+   * The picture of the clip that isn't the playing one during a transition:
+   * its real footage at the handle time (see lib/overlap.ts). When it isn't
+   * ready the frame is drawn without the transition, never with a black side.
    */
-  edges?: EdgeFrames;
+  other?: OtherFrame;
 }
 
-export type EdgeFrames = (clip: VideoClip, edge: "start" | "end") => SourceFrame | null;
+export type OtherFrame = (it: Placed) => SourceFrame | null;
 
 export interface SourceFrame {
   image: CanvasImageSource;
@@ -162,7 +165,7 @@ function drawCard(ctx: Ctx, W: number, H: number, c: CardClip, local: number) {
 /* ---------- the frame ---------- */
 
 /** Paint one clip's picture over the whole frame. */
-function drawPicture(ctx: Ctx, s: Scene, it: Placed | null, src: SourceFrame | null, t: number, held = false): void {
+function drawPicture(ctx: Ctx, s: Scene, it: Placed | null, src: SourceFrame | null, t: number): void {
   const { W, H } = s;
   const clip = it?.clip;
   // image clips draw their own picture (the preview and the exporter pass no source frame)
@@ -180,10 +183,6 @@ function drawPicture(ctx: Ctx, s: Scene, it: Placed | null, src: SourceFrame | n
       f = { ...f, zoom: Math.max(1, (f.zoom ?? 1)) * (1 + (clip.kenBurns - 1) * p) };
     }
     composeFrame(ctx, src.image, src.w, src.h, W, H, f);
-  } else if (held) {
-    // an edge frame that isn't decoded yet: black, so the transition reads as a dip
-    ctx.fillStyle = "#000";
-    ctx.fillRect(0, 0, W, H);
   } else {
     const g = ctx.createLinearGradient(0, 0, W, H);
     g.addColorStop(0, "#23262E");
@@ -191,6 +190,52 @@ function drawPicture(ctx: Ctx, s: Scene, it: Placed | null, src: SourceFrame | n
     ctx.fillStyle = g;
     ctx.fillRect(0, 0, W, H);
   }
+}
+
+/** Seconds a caption that changes at a cut takes to cross-fade into the next one. */
+export const CAPTION_HANDOVER = 0.1;
+/** A caption change this close to a cut counts as changing at the cut. */
+const CAPTION_CUT_WINDOW = 0.25;
+
+let capLayers: [OffscreenCanvas | HTMLCanvasElement, OffscreenCanvas | HTMLCanvasElement] | null = null;
+function capLayer(i: 0 | 1, W: number, H: number) {
+  const make = () => (typeof OffscreenCanvas !== "undefined" ? new OffscreenCanvas(W, H) : Object.assign(document.createElement("canvas"), { width: W, height: H }));
+  capLayers ??= [make(), make()];
+  const c = capLayers[i];
+  if (c.width !== W || c.height !== H) { c.width = W; c.height = H; }
+  const x = c.getContext("2d") as Ctx;
+  x.setTransform(1, 0, 0, 1, 0, 0);
+  x.clearRect(0, 0, W, H);
+  return { c, x };
+}
+
+/**
+ * The captions at t. When one caption hands straight over to the next close
+ * to a cut, the old one stays for a moment and cross-fades into the new one
+ * instead of popping, so the caption change rides along with the picture change.
+ */
+function drawCaptionsAt(ctx: Ctx, s: Scene, t: number): CaptionBox | null {
+  const { W, H } = s;
+  const draw = (c: Ctx, at: number) => drawCaptions(c, W, H, s.lines, at, s.style, s.overrides, s.translations, { speakers: s.speakers });
+  const li = lineAt(s.lines, t);
+  const line = s.lines[li];
+  const prev = s.lines[li - 1];
+  const into = line ? t - line.start : Infinity;
+  const handover = !!prev && into >= 0 && into < CAPTION_HANDOVER && line.start - prev.end < 0.05 + LINGER;
+  const nearCut = handover && s.tl.items.some((it, i) => i > 0 && Math.abs(line.start - it.outStart) < CAPTION_CUT_WINDOW);
+  if (!nearCut) return draw(ctx, t);
+  const k = smoothstep(into / CAPTION_HANDOVER);
+  const a = capLayer(0, W, H);
+  draw(a.x, line.start - 1e-3);
+  const b = capLayer(1, W, H);
+  const box = draw(b.x, t);
+  ctx.save();
+  ctx.globalAlpha = 1 - k;
+  ctx.drawImage(a.c as CanvasImageSource, 0, 0, W, H);
+  ctx.globalAlpha = k;
+  ctx.drawImage(b.c as CanvasImageSource, 0, 0, W, H);
+  ctx.restore();
+  return box;
 }
 
 /** Returns the caption's bounding box (for click-to-select in the preview). */
@@ -205,14 +250,14 @@ export function renderFrame(ctx: Ctx, s: Scene, src: SourceFrame | null): Captio
   ctx.fillRect(0, 0, W, H);
   if (fx !== NO_FX) applyCamera(ctx, W, H, fx);
 
-  if (tr) {
-    // the live clip uses the decoded frame; the other one is held on its edge frame
-    const live = tr.phase === "out" ? tr.from : tr.to;
-    const other = tr.phase === "out" ? tr.to : tr.from;
-    const otherSrc = other.clip.kind === "video" ? s.edges?.(other.clip, tr.phase === "out" ? "start" : "end") ?? null : null;
-    const otherT = tr.phase === "out" ? other.outStart : other.outEnd;
+  // both pictures must be real for a transition: the playing clip and the other clip's footage
+  const live = tr ? (tr.phase === "out" ? tr.from : tr.to) : null;
+  const other = tr ? (tr.phase === "out" ? tr.to : tr.from) : null;
+  const otherSrc = other && other.clip.kind === "video" ? s.other?.(other) ?? null : null;
+  const ready = !!tr && (other!.clip.kind !== "video" || !!otherSrc) && (live!.clip.kind !== "video" || !!src);
+  if (tr && ready) {
     const paintLive = (c: Ctx) => drawPicture(c, s, live, src, t);
-    const paintOther = (c: Ctx) => drawPicture(c, s, other, otherSrc, otherT, true);
+    const paintOther = (c: Ctx) => drawPicture(c, s, other, otherSrc, Math.max(other!.outStart, Math.min(other!.outEnd, t)));
     drawTransition(ctx, W, H, { kind: tr.kind, p: tr.p, t }, tr.phase === "out" ? paintLive : paintOther, tr.phase === "out" ? paintOther : paintLive);
   } else {
     drawPicture(ctx, s, item, src, t);
@@ -226,7 +271,7 @@ export function renderFrame(ctx: Ctx, s: Scene, src: SourceFrame | null): Captio
   // captions behind the person: cut the people out of the picture now, draw them back over the captions
   const people = s.style.behindSubject && src && item?.clip.kind !== "card" ? cutOutPeople(ctx, W, H) : null;
   drawLayers(ctx, W, H, s.layers, t, env, -Infinity, cz);
-  const box = drawCaptions(ctx, W, H, s.lines, t, s.style, s.overrides, s.translations, { speakers: s.speakers });
+  const box = drawCaptionsAt(ctx, s, t);
   if (people) ctx.drawImage(people, 0, 0);
   drawLayers(ctx, W, H, s.layers, t, env, cz, Infinity);
   if (fx !== NO_FX) drawFxFlash(ctx, W, H, fx);
