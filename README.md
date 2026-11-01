@@ -73,7 +73,7 @@ Your video never leaves your device. Only a small audio track is sent for speech
 
 ## ▣ See it in action
 
-A quick tour of the desktop editor, from setting up your key to the finished video. The demo clip is from [Spindia](https://www.youtube.com/@spindia007), used with permission.
+A quick tour of the desktop editor, from setting up your key to the finished video.
 
 ### 1. Add your ElevenLabs key
 
