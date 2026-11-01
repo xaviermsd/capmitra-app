@@ -1,1 +1,1 @@
-CapMitra Edit on a phone: the real editor showing a video with Gujarati auto captions, the player and the timeline. Captions. Audio. Video Editing.
+CapMitra Edit: auto captions in 34 languages. A podcast clip with word-timed captions, made in the browser editor.

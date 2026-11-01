@@ -99,17 +99,17 @@ Pick the language and script, press **Generate captions**, and every word comes 
 
 Caption size, a font for every script, and the highlight colour for the spoken word.
 
-### 5. Fix a word in seconds
+### 5. Edit any word in seconds
 
-<img src="docs/readme/guide/05-edit-text.gif" alt="Fix a word in seconds" width="100%" />
+<img src="docs/readme/guide/05-edit-text.gif" alt="Edit any word in seconds" width="100%" />
 
-Click a misheard word and type the right spelling, or add a headline and type straight onto the video.
+Click any word in the transcript and change how it is written, or add a headline and type straight onto the video.
 
 ### 6. Effects and transitions
 
 <img src="docs/readme/guide/06-effects-transitions.gif" alt="Effects and transitions" width="100%" />
 
-One-tap presets like Reels hype, split at the playhead with **S**, and pick a transition for the cut.
+One-tap presets like Reels hype, split at the playhead with **S**, then pick a transition for the cut: cross dissolve, zoom, whip pan and more.
 
 ### 7. Clips and timeline
 
@@ -121,7 +121,7 @@ Add photos, title cards and clips, zoom in for frame-exact edits, then **Fit** t
 
 <img src="docs/readme/guide/08-brand-kit.gif" alt="Your brand kit" width="100%" />
 
-Save your fonts, colours and logo once, then apply them to any project.
+Save your logo, fonts and colours once, then apply them to any project in one click.
 
 ### 9. Export
 
