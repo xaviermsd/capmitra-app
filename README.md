@@ -18,7 +18,7 @@ Cut and arrange clips, clean up the sound, add music and effects, caption every 
 
 <a href="https://capmitra-app.vercel.app"><img src="https://img.shields.io/badge/Open_CapMitra-Invite--only_beta-D6FF36?style=for-the-badge&labelColor=080808" alt="Open CapMitra (invite-only beta)" /></a>
 <a href="https://ig.me/m/harshprajapatiofficial"><img src="https://img.shields.io/badge/Get_an_invite-DM_on_Instagram-080808?style=for-the-badge&labelColor=D6FF36&logo=instagram&logoColor=080808" alt="Get an invite on Instagram" /></a>
-<a href="#see-it"><img src="https://img.shields.io/badge/See_it_in_action-11_steps-080808?style=for-the-badge&labelColor=F7F8F4" alt="See it in action" /></a>
+<a href="#see-it"><img src="https://img.shields.io/badge/See_it_in_action-12_steps-080808?style=for-the-badge&labelColor=F7F8F4" alt="See it in action" /></a>
 
 ![Next.js](https://img.shields.io/badge/Next.js-16-080808?style=for-the-badge&logo=nextdotjs&logoColor=D6FF36)
 ![TypeScript](https://img.shields.io/badge/TypeScript-5-080808?style=for-the-badge&logo=typescript&logoColor=D6FF36)
@@ -107,35 +107,41 @@ Click any word in the transcript and change how it is written, or add a headline
 
 ### 6. Effects and transitions
 
-<img src="docs/readme/guide/06-effects-transitions.gif" alt="Effects and transitions" width="100%" />
+<p align="center"><img src="docs/readme/guide/06-effects-transitions.gif" alt="Dissolve, zoom in and whip pan transitions on a real cut" width="300" /></p>
 
-One-tap presets like Reels hype, split at the playhead with **S**, then pick a transition for the cut: cross dissolve, zoom, whip pan and more.
+One-tap presets like Reels hype and 27 effects, split at the playhead with **S**, then pick one of 15 transitions for the cut. Here are cross dissolve, zoom in and whip pan.
 
-### 7. Clips and timeline
+### 7. Clean up the audio
+
+<img src="docs/readme/guide/13-audio.gif" alt="Clean up the audio" width="100%" />
+
+Noise reduction and Studio, Podcast or Less echo voices, auto level, a music bed with volume and fades, and sound effects dropped right onto the timeline.
+
+### 8. Clips and timeline
 
 <img src="docs/readme/guide/07-timeline.gif" alt="Clips and timeline" width="100%" />
 
 Add photos, title cards and clips, zoom in for frame-exact edits, then **Fit** to see the whole edit.
 
-### 8. Your brand kit
+### 9. Your brand kit
 
 <img src="docs/readme/guide/08-brand-kit.gif" alt="Your brand kit" width="100%" />
 
 Save your logo, fonts and colours once, then apply them to any project in one click.
 
-### 9. Export
+### 10. Export
 
 <img src="docs/readme/guide/10-export.gif" alt="Export" width="100%" />
 
 MP4 up to 4K, rendered right in your browser while you watch, or SRT and VTT subtitles.
 
-### 10. Remove the badge with a code
+### 11. Remove the badge with a code
 
 <img src="docs/readme/guide/11-watermark-code.gif" alt="Remove the badge with a code" width="100%" />
 
 Free exports carry a small **Made with CapMitra** badge. Paste your personal code and it's gone.
 
-### 11. Projects and backup
+### 12. Projects and backup
 
 <img src="docs/readme/guide/12-projects-backup.gif" alt="Projects and backup" width="100%" />
 
