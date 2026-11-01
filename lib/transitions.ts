@@ -9,7 +9,7 @@
  * tail handle after it (lib/overlap.ts), so both pictures are real footage.
  */
 import type { TransitionKind } from "./project";
-import { bell, clamp01, easeInCubic, easeInExpo, easeInOutExpo, easeInOutExpoSpeed, easeInOutSine, easeInQuad, easeOutCubic, easeOutExpo, ramp, smoothstep } from "./easing";
+import { bell, clamp01, easeInCubic, easeInExpo, easeInOutCubic, easeInOutQuart, easeInOutSine, easeInQuad, easeOutCubic, easeOutExpo, ramp, smoothstep } from "./easing";
 
 export interface TransitionMeta {
   kind: TransitionKind;
@@ -123,8 +123,18 @@ const pose = (who: Pose["who"], o: Partial<Pose> = {}): Pose => ({ who, scale: 1
 /** The outgoing picture until the cut, then the incoming one. */
 const sideAt = (p: number): Pose["who"] => (p < 0.5 ? "from" : "to");
 
-/** Push travel 0 -> 1: slow start, a very fast middle, slow landing. */
-export const pushTravel = (p: number) => easeInOutExpo(p);
+/**
+ * Push travel 0 -> 1. Slides use cubic in-out, so the move spreads over the
+ * middle of the window and both pictures are seen travelling; the whip uses
+ * quart in-out, faster in the middle but still readable.
+ */
+export const pushTravel = (p: number, whip = false) => (whip ? easeInOutQuart(p) : easeInOutCubic(p));
+/** Speed of pushTravel, normalised so the peak (the middle) is 1. */
+export function pushSpeed(p: number, whip = false): number {
+  p = clamp01(p);
+  const u = p < 0.5 ? p * 2 : 2 - p * 2;
+  return whip ? u * u * u : u * u;
+}
 
 /**
  * Where every picture is at progress p. Pure geometry, so the tests can check
@@ -176,10 +186,11 @@ export function transitionLayout(kind: TransitionKind, p: number, W: number, H: 
       // the old clip shrinks away over the new one, which settles from 1.35x underneath
       const q = clamp01(p / 0.6);
       L.layers = [
-        pose("to", { scale: 1.35 - 0.35 * easeOutCubic(p), zoomBlur: 0.1 * Math.pow(1 - p, 2) }),
-        pose("from", { scale: 1 - 0.45 * easeInQuad(q), alpha: 1 - ramp(0.42, 0.6, p), zoomBlur: 0.12 * easeInQuad(q), shadow: true }),
+        pose("to", { scale: 1.35 - 0.35 * easeOutCubic(p) }),
+        pose("from", { scale: 1 - 0.45 * easeInQuad(q), alpha: 1 - ramp(0.38, 0.62, p), shadow: true }),
       ];
-      L.blur = short * 0.008 * bell(p);
+      // a soft defocus instead of zoom-blur copies (copies ghost on a fading picture); gone by the end
+      L.blur = short * 0.01 * bell(p) * (1 - ramp(0.7, 0.95, p));
       return L;
     }
 
@@ -193,18 +204,20 @@ export function transitionLayout(kind: TransitionKind, p: number, W: number, H: 
       const horiz = kind === "slide-left" || kind === "slide-right" || whip;
       const sign = kind === "slide-right" || kind === "slide-down" ? 1 : -1;
       const span = horiz ? W : H;
-      const e = pushTravel(p);
+      const e = pushTravel(p, whip);
       const off = sign * e * span;
       const back = off - sign * span;
       // a whip lands with a small settle: a touch of scale that eases out
       const settle = whip ? 1 + 0.06 * (p < 0.5 ? easeInQuad(u) : Math.pow(1 - w, 3)) : 1;
-      const v = easeInOutExpoSpeed(p);
+      const v = pushSpeed(p, whip);
       L.layers = horiz
         ? [pose("from", { dx: off, scale: settle }), pose("to", { dx: back, scale: settle })]
         : [pose("from", { dy: off, scale: settle }), pose("to", { dy: back, scale: settle })];
       L.horiz = horiz;
-      L.motionBlur = (whip ? 0.55 : 0.2) * span * v;
-      if (whip) L.blur = short * 0.006 * v;
+      // blur follows the speed but stays a fraction of the per-frame move, so
+      // mid-push frames still show both pictures rather than a smear
+      L.motionBlur = (whip ? 0.22 : 0.07) * span * v;
+      if (whip) L.blur = short * 0.004 * v;
       return L;
     }
 

@@ -205,8 +205,37 @@ describe("transition motion", () => {
     const mb = (p: number) => transitionLayout("slide-left", p, 1080, 1920).motionBlur;
     expect(mb(0)).toBeLessThan(1);
     expect(mb(1)).toBeLessThan(1);
-    expect(mb(0.5)).toBeGreaterThan(150);
+    expect(mb(0.5)).toBeGreaterThan(50);
+    expect(mb(0.5)).toBeLessThan(120); // readable, not a smear
     expect(transitionLayout("whip", 0.5, 1080, 1920).motionBlur).toBeGreaterThan(mb(0.5) * 2);
+  });
+
+  it("slides spread the move so both clips are seen travelling for most of the window", () => {
+    // frames at 30 fps over the default 0.4 s where the push is visibly part way across
+    const n = Math.round(defaultDuration("slide-left") * 30);
+    let moving = 0;
+    for (let f = 0; f <= n; f++) {
+      const [a] = transitionLayout("slide-left", f / n, 1080, 1920).layers;
+      const travel = -a.dx / 1080;
+      if (travel > 0.03 && travel < 0.97) moving++;
+    }
+    expect(moving).toBeGreaterThanOrEqual(7);
+    // the whip is quicker but still not a two-frame streak
+    const m = Math.round(defaultDuration("whip") * 30);
+    let whipMoving = 0;
+    for (let f = 0; f <= m; f++) {
+      const travel = -transitionLayout("whip", f / m, 1080, 1920).layers[0].dx / 1080;
+      if (travel > 0.03 && travel < 0.97) whipMoving++;
+    }
+    expect(whipMoving).toBeGreaterThanOrEqual(4);
+  });
+
+  it("zoom out settles cleanly: no blur copies, full size and sharp at the end", () => {
+    for (const p of steps(100)) for (const l of transitionLayout("zoom-out", p, 1080, 1920).layers) expect(l.zoomBlur ?? 0).toBe(0);
+    const end = transitionLayout("zoom-out", 1, 1080, 1920);
+    expect(end.blur).toBe(0);
+    expect(end.layers.find((l) => l.who === "to")!.scale).toBeCloseTo(1, 9);
+    expect(end.layers.find((l) => l.who === "from")!.alpha).toBe(0);
   });
 
   it("glitch flickers between both clips for two or three frames at the cut", () => {
