@@ -77,7 +77,7 @@ export function GraphicsPanel() {
         <Section title="Add" right={
           <>
             <button className="btn small ghost" onClick={() => fileRef.current?.click()}><IconUpload size={14} /> Image, logo or SVG</button>
-            {sel ? <button className="btn icon small ghost" onClick={() => setAddOpen(false)} aria-label="Hide the catalogue">–</button> : null}
+            {sel ? <button className="btn icon small ghost" onClick={() => setAddOpen(false)} aria-label="Hide the catalogue">-</button> : null}
           </>
         }>
           <div className="add-group">
@@ -146,15 +146,15 @@ export function GraphicsPanel() {
             ) : null}
           </Section>
           <Section title="Placement">
-            <Slider label="Left–right" value={sel.x} min={0} max={100} step={0.5} unit="%" onChange={(v) => up({ x: v })} />
-            <Slider label="Top–bottom" value={sel.y} min={0} max={100} step={0.5} unit="%" onChange={(v) => up({ y: v })} />
+            <Slider label="Left to right" value={sel.x} min={0} max={100} step={0.5} unit="%" onChange={(v) => up({ x: v })} />
+            <Slider label="Top to bottom" value={sel.y} min={0} max={100} step={0.5} unit="%" onChange={(v) => up({ y: v })} />
             <Slider label="Width" value={sel.w} min={1} max={120} step={0.5} unit="%" onChange={(v) => up({ w: v })} />
             <Slider label="Height" value={sel.h} min={0.3} max={120} step={0.5} unit="%" onChange={(v) => up({ h: v })} />
             <Slider label="Rotation" value={sel.rotation} min={-180} max={180} step={1} unit="°" onChange={(v) => up({ rotation: v })} />
             <Slider label="Opacity" value={sel.opacity} min={0} max={1} step={0.01} onChange={(v) => up({ opacity: v })} />
             <div className="row-btns wrap">
-              <button className="btn small" onClick={() => up({ x: 50 })}>Centre left–right</button>
-              <button className="btn small" onClick={() => up({ y: 50 })}>Centre top–bottom</button>
+              <button className="btn small" onClick={() => up({ x: 50 })}>Centre left to right</button>
+              <button className="btn small" onClick={() => up({ y: 50 })}>Centre top to bottom</button>
             </div>
           </Section>
           <Section title="Timing">
@@ -184,7 +184,7 @@ export function GraphicsPanel() {
                 <>
                   <button className="btn icon small ghost" onClick={() => ed.updateLayer(r.l.id, { hidden: !r.l.hidden || undefined })} aria-label={r.l.hidden ? "Show" : "Hide"} aria-pressed={!r.l.hidden}>{r.l.hidden ? <IconEyeOff size={14} /> : <IconEye size={14} />}</button>
                   <button className="layer-name" onClick={() => { setSelection({ kind: "layer", id: r.l.id }); ed.playback.seek(Math.max(r.l.start, Math.min(r.l.end - 0.05, ed.playback.getTime()))); }}>
-                    <b>{r.l.name}</b><em>{r.l.text ? r.l.text.slice(0, 28) : `${r.l.start.toFixed(1)}–${Math.min(r.l.end, ed.tl.duration).toFixed(1)} s`}</em>
+                    <b>{r.l.name}</b><em>{r.l.text ? r.l.text.slice(0, 28) : `${r.l.start.toFixed(1)} to ${Math.min(r.l.end, ed.tl.duration).toFixed(1)} s`}</em>
                   </button>
                   <button className="btn icon small ghost" onClick={() => ed.updateLayer(r.l.id, { locked: !r.l.locked || undefined })} aria-label={r.l.locked ? "Unlock" : "Lock"} aria-pressed={!!r.l.locked}>{r.l.locked ? <IconLock size={14} /> : <IconUnlock size={14} />}</button>
                 </>

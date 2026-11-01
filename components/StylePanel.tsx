@@ -68,7 +68,7 @@ const PREVIEW_ACCENT: CaptionLine[] = PREVIEW_LINES.map((l) => ({ ...l, words: l
 
 /** "Footage" moods behind the caption so white and coloured captions read as they would on video. */
 const MOODS = 6;
-const LOOP = 3.6; // seconds: the sample line runs 0–3 s, then holds briefly
+const LOOP = 3.6; // seconds: the sample line runs 0 to 3 s, then holds briefly
 
 /**
  * Template card with a live preview drawn by the real caption renderer, so the

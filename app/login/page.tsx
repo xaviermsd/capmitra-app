@@ -91,7 +91,7 @@ function Login() {
           <>
             <img src="/brand/icon-192.png" alt="" width={72} height={72} className="login-mark" />
             <h1 className="login-title">CapMitra <span className="wm-badge-edit">EDIT</span></h1>
-            <p className="login-tag">Captions. Audio. Video Editing.</p>
+            <p className="login-tag">Edit video, audio and captions in one place.</p>
             <p>Enter your team passcode to open the studio.</p>
             <label className={`login-field ${err ? "invalid" : ""}`}>
               <IconLock size={16} />

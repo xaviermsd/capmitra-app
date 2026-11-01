@@ -534,7 +534,7 @@ export function Stage() {
       <div className="guide-x" ref={guideXRef} />
       <div className="guide-y" ref={guideYRef} />
       {centred && (centred.x || centred.y) ? (
-        <div className="centred-badge" role="status"><IconCheck size={14} /> {centred.x && centred.y ? "Centred" : centred.x ? "Centred left–right" : "Centred top–bottom"}</div>
+        <div className="centred-badge" role="status"><IconCheck size={14} /> {centred.x && centred.y ? "Centred" : centred.x ? "Centred left to right" : "Centred top to bottom"}</div>
       ) : null}
       <div className="sel-box" ref={capSelRef}><span className="sel-handle" title="Drag to resize" /></div>
       <div className={`layer-sel ${editing ? "editing" : ""}`} ref={layerSelRef}>
@@ -565,8 +565,8 @@ export function Stage() {
               <button className={scope === "line" ? "on" : ""} onClick={() => { ed.setScope("line"); ed.setPanel("captions"); }}>This caption</button>
             </div>
           )}
-          <button className="btn icon small ghost" onClick={() => centre("x")} data-tip="Centre left–right" aria-label="Centre horizontally"><IconAlignH size={16} /></button>
-          <button className="btn icon small ghost" onClick={() => centre("y")} data-tip="Centre top–bottom" aria-label="Centre vertically"><IconAlignV size={16} /></button>
+          <button className="btn icon small ghost" onClick={() => centre("x")} data-tip="Centre left to right" aria-label="Centre horizontally"><IconAlignH size={16} /></button>
+          <button className="btn icon small ghost" onClick={() => centre("y")} data-tip="Centre top to bottom" aria-label="Centre vertically"><IconAlignV size={16} /></button>
           {selKey && doc.overrides[selKey] ? (
             <button className="btn small ghost" onClick={() => project.update((d) => { const o = { ...d.overrides }; delete o[selKey]; return { ...d, overrides: o }; })}>Reset this caption</button>
           ) : null}

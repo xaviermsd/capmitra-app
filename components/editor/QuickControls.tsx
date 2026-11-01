@@ -2,10 +2,10 @@
 /**
  * Quick controls right under the player, so the things people change most
  * don't hide in panels:
- *   Speed  – speed of the clip at the playhead (exported, pitch kept)
- *   Sound  – mute / volume of the original sound, background music from the
+ *   Speed: speed of the clip at the playhead (exported, pitch kept)
+ *   Sound: mute / volume of the original sound, background music from the
  *            device with volume and fades, noise reduction
- *   Cut    – the transition on a cut between two clips: preview, replace,
+ *   Cut: the transition on a cut between two clips: preview, replace,
  *            change, remove, or join the clips back together
  * On phones they open as a bottom sheet; on desktop as a popover by the button.
  */

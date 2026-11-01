@@ -3,7 +3,7 @@
  *
  *   AC - <NAME> - <EXPIRY> - <SIGNATURE>
  *
- * NAME       who the code is for (A–Z, 0–9, up to 16 characters)
+ * NAME       who the code is for (A to Z, 0 to 9, up to 16 characters)
  * EXPIRY     when it stops working, in minutes since 1970, base 36 ("0" = never)
  * SIGNATURE  HMAC-SHA256 of NAME.EXPIRY with WATERMARK_SECRET, so nobody can invent
  *            or edit a code without the secret, which only the server knows.
@@ -52,7 +52,7 @@ export async function createCode(name: string, hours: number): Promise<UnlockInf
 
 /** Accepts what people paste: lower case, spaces, missing dashes around words are fine. */
 export function normaliseCode(raw: string): string {
-  return raw.toUpperCase().replace(/\s+/g, "").replace(/[–—_]/g, "-");
+  return raw.toUpperCase().replace(/\s+/g, "").replace(/[\u2013\u2014_]/g, "-");
 }
 
 function revoked(info: { name: string; code: string }): boolean {

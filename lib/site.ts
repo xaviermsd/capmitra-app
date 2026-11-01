@@ -6,9 +6,9 @@ export const SITE_URL = (
 ).replace(/\/$/, "");
 
 export const SITE_NAME = "CapMitra";
-export const SITE_TITLE = "CapMitra: Captions & Video Editor";
+export const SITE_TITLE = "CapMitra Edit: video, audio and caption editor";
 export const SITE_DESCRIPTION =
-  "Auto captions in Gujarati, Hindi, Hinglish, English and more, plus video editing, effects and music for Reels, Shorts and YouTube. Word-by-word transcription, animated templates, and MP4 or SRT export, rendered on your own device.";
+  "Edit video, audio and captions in one place, right in your browser. Word-by-word captions in 34 languages, noise reduction and music, effects, transitions and 4K export.";
 
 /** Only let search engines index the site when it's meant to be public. */
 export const INDEXABLE = process.env.NEXT_PUBLIC_ALLOW_INDEXING === "true";

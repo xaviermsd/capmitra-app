@@ -90,7 +90,7 @@ export function ExportPanel() {
   return (
     <>
       <Section title="Video">
-        <Select label="Format" value={prefs.format} options={[{ value: "mp4", label: "MP4 (H.264 / HEVC) – everywhere" }, { value: "webm", label: `WebM (VP9)${webm === false ? " – not supported here" : ""}` }]} onChange={(v) => setPrefs({ format: v })} />
+        <Select label="Format" value={prefs.format} options={[{ value: "mp4", label: "MP4 (H.264 / HEVC), plays everywhere" }, { value: "webm", label: `WebM (VP9)${webm === false ? ", not supported here" : ""}` }]} onChange={(v) => setPrefs({ format: v })} />
         <Select label="Resolution" value={prefs.short} options={[
           { value: 0, label: "Same as original" }, { value: 2160, label: "4K (2160p)" }, { value: 1440, label: "1440p" },
           { value: 1080, label: "1080p (Reels, Shorts)" }, { value: 720, label: "720p" }, { value: 480, label: "480p" },

@@ -128,7 +128,7 @@ export function MultiTrackTimeline() {
   const nSnd = Math.max(1, sndL.lanes.length);
   const music = doc.audio?.music;
   const dur = Math.max(1, tl.duration);
-  /** Scale when the whole video fits (zoom 1) — with padding after the end. */
+  /** Scale when the whole video fits (zoom 1), with padding after the end. */
   const fitPps = Math.max(1e-6, (width - LABEL_W - END_PAD) / dur);
   const pps = fitPps * zoom;
   /** Seconds visible across the canvas. */
@@ -182,7 +182,7 @@ export function MultiTrackTimeline() {
     return () => ro.disconnect();
   }, []);
 
-  // follow the playhead — but only when the *playhead* moved, never when the user scrolled away from it
+  // follow the playhead, but only when the *playhead* moved, never when the user scrolled away from it
   const lastTime = useRef(time);
   useEffect(() => {
     if (maxView <= 0) { if (view !== 0) setView(0); return; }
@@ -356,7 +356,7 @@ export function MultiTrackTimeline() {
           }
           ctx.restore();
         }
-        label(`${it.clip.sourceId ? `▶ ${it.clip.name ?? "Added video"} · ` : ""}${speedOf(it.clip) !== 1 ? `${speedOf(it.clip)}× speed · ` : ""}${fmtT(it.clip.srcStart, true)}–${fmtT(Number.isFinite(it.clip.srcEnd) ? it.clip.srcEnd : 0, true)}`, x0, x1, yVideo + 11, 10, ink);
+        label(`${it.clip.sourceId ? `▶ ${it.clip.name ?? "Added video"} · ` : ""}${speedOf(it.clip) !== 1 ? `${speedOf(it.clip)}× speed · ` : ""}${fmtT(it.clip.srcStart, true)} to ${fmtT(Number.isFinite(it.clip.srcEnd) ? it.clip.srcEnd : 0, true)}`, x0, x1, yVideo + 11, 10, ink);
       } else if (it.clip.kind === "image") {
         box(x0 + 1, x1 - 1, yVideo, VIDEO_H, "#dfe7d2", isSel ? accent : "rgba(8,8,8,0.25)", isSel ? 2 : 1);
         // a small picture of the image itself, when it has loaded

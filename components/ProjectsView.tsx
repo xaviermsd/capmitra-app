@@ -107,7 +107,7 @@ export function ProjectsView({
         </label>
         <select value={sort} onChange={(e) => setSort(e.target.value as Sort)} aria-label="Sort projects">
           <option value="recent">Recently edited</option>
-          <option value="name">Name (A–Z)</option>
+          <option value="name">Name (A to Z)</option>
           <option value="oldest">Oldest first</option>
           <option value="longest">Longest video</option>
         </select>

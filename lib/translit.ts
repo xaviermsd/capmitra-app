@@ -5,11 +5,11 @@
  *   Hindi      नमस्ते दोस्तों  → namaste doston        (Hinglish / Roman Hindi)
  *
  * Two styles:
- *   casual – the way people type on WhatsApp/Instagram: long vowels mostly
+ *   casual: the way people type on WhatsApp/Instagram: long vowels mostly
  *            single (khana, nahi), "aa" only where it's heard long in a closed
  *            syllable (kaam, aaj), and English loanwords written in English
  *            (वीडियो → video, લાઇક → like). Used for Gujlish and Hinglish.
- *   roman  – strict: every long vowel doubled (aa, ee, oo), no loanword swaps.
+ *   roman: strict: every long vowel doubled (aa, ee, oo), no loanword swaps.
  *
  * Hindi drops the inherent "a" inside words (कमरा → kamra, समझना → samajhna)
  * by the usual rule (a → ∅ / VC_CV, applied right to left, plus word-final).

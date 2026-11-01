@@ -43,7 +43,7 @@ function seek(v: HTMLVideoElement, t: number): Promise<void> {
 }
 
 /**
- * Pan (0–100 %, as the Frame panel uses) that keeps the main face centred
+ * Pan (0 to 100 %, as the Frame panel uses) that keeps the main face centred
  * for a crop to `aspect` (width / height) of a source of `srcW`×`srcH`.
  * The median face position over `samples` frames is used, so a quick turn
  * of the head doesn't throw the crop off.

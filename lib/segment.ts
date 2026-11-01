@@ -82,7 +82,7 @@ function personMask(frame: CanvasImageSource, W: number, H: number): AnyCanvas |
     const mctx = mask.getContext("2d") as CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D;
     const img = mctx.createImageData(m.width, m.height);
     for (let i = 0; i < conf.length; i++) {
-      // smoothstep 0.35–0.75: firm inside the person, soft at the edge
+      // smoothstep 0.35 to 0.75: firm inside the person, soft at the edge
       const x = Math.min(1, Math.max(0, (conf[i] - 0.35) / 0.4));
       img.data[i * 4 + 3] = Math.round(x * x * (3 - 2 * x) * 255);
     }

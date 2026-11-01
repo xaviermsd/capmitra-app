@@ -109,7 +109,7 @@ export function EditPanel() {
               <li key={c.id} className={`clip-row ${sel?.id === c.id ? "on" : ""} ${c.kind}`}>
                 <button className="clip-main" onClick={() => { setSelection({ kind: "clip", id: c.id }); if (it) ed.playback.seek(it.outStart + 0.01); }}>
                   <b>{c.kind === "video" ? (c.sourceId ? `▶ ${c.name ?? "Added video"}` : `Clip ${clips.slice(0, i + 1).filter((x) => x.kind === "video" && !x.sourceId).length}`) : c.kind === "image" ? `🖼 ${c.name ?? "Image"}` : `▣ ${c.title || "Card"}`}{c.tag ? " · brand" : ""}</b>
-                  <em>{c.kind === "video" ? `${fmt(c.srcStart)}–${fmt(c.srcEnd)}${c.sourceId ? "" : " of the video"}` : c.kind === "image" ? "image" : c.title ? "title card" : "blank"} · {clipLength(c).toFixed(1)} s{speedOf(c) !== 1 ? ` · ${speedOf(c)}×` : ""}{c.transition && c.transition.kind !== "none" ? ` · ${TRANSITIONS.find((t) => t.value === c.transition!.kind)?.label}` : ""}</em>
+                  <em>{c.kind === "video" ? `${fmt(c.srcStart)} to ${fmt(c.srcEnd)}${c.sourceId ? "" : " of the video"}` : c.kind === "image" ? "image" : c.title ? "title card" : "blank"} · {clipLength(c).toFixed(1)} s{speedOf(c) !== 1 ? ` · ${speedOf(c)}×` : ""}{c.transition && c.transition.kind !== "none" ? ` · ${TRANSITIONS.find((t) => t.value === c.transition!.kind)?.label}` : ""}</em>
                 </button>
                 <button className="btn icon small ghost" onClick={() => { const copy = { ...c, id: ed.uid("c"), tag: undefined } as Clip; setClips([...clips.slice(0, i + 1), copy, ...clips.slice(i + 1)]); setSelection({ kind: "clip", id: copy.id }); }} aria-label="Duplicate clip"><IconCopy size={14} /></button>
                 <button className="btn icon small ghost" disabled={i === 0} onClick={() => setClips(moveClip(clips, c.id, i - 1))} aria-label="Move earlier"><IconArrowUp size={14} /></button>
@@ -131,8 +131,8 @@ export function EditPanel() {
                 {sel.kenBurns && sel.kenBurns !== 1 ? <Slider label="Zoom amount" value={sel.kenBurns} min={1.02} max={1.4} step={0.01} unit="×" onChange={(v) => updClip({ kenBurns: v })} /> : null}
                 <Select label="Fill the frame" value={sel.frame?.fit ?? ed.doc.frame.fit} options={[{ value: "crop", label: "Crop to fill" }, { value: "blur", label: "Fit, blurred edges" }, { value: "color", label: "Fit, plain colour" }]} onChange={(v) => updClip({ frame: { ...sel.frame, fit: v } })} />
                 <Slider label="Zoom" value={sel.frame?.zoom ?? 1} min={1} max={3} step={0.01} unit="×" onChange={(v) => updClip({ frame: { ...sel.frame, zoom: v } })} />
-                <Slider label="Pan left–right" value={sel.frame?.panX ?? 50} min={0} max={100} step={0.5} unit="%" onChange={(v) => updClip({ frame: { ...sel.frame, panX: v } })} />
-                <Slider label="Pan up–down" value={sel.frame?.panY ?? 50} min={0} max={100} step={0.5} unit="%" onChange={(v) => updClip({ frame: { ...sel.frame, panY: v } })} />
+                <Slider label="Pan left to right" value={sel.frame?.panX ?? 50} min={0} max={100} step={0.5} unit="%" onChange={(v) => updClip({ frame: { ...sel.frame, panX: v } })} />
+                <Slider label="Pan up and down" value={sel.frame?.panY ?? 50} min={0} max={100} step={0.5} unit="%" onChange={(v) => updClip({ frame: { ...sel.frame, panY: v } })} />
                 <div className="row-btns">
                   <button className="btn small" onClick={() => replaceRef.current?.click()}><IconUpload size={14} /> Replace image</button>
                   <input ref={replaceRef} type="file" accept="image/*" hidden onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ""; if (f) void replaceImage(f); }} />
@@ -153,8 +153,8 @@ export function EditPanel() {
                 {sel.frame ? (
                   <>
                     <Slider label="Zoom" value={sel.frame.zoom ?? 1} min={1} max={3} step={0.01} unit="×" onChange={(v) => updClip({ frame: { ...sel.frame, zoom: v } })} />
-                    <Slider label="Pan left–right" value={sel.frame.panX ?? 50} min={0} max={100} step={0.5} unit="%" onChange={(v) => updClip({ frame: { ...sel.frame, panX: v } })} />
-                    <Slider label="Pan up–down" value={sel.frame.panY ?? 50} min={0} max={100} step={0.5} unit="%" onChange={(v) => updClip({ frame: { ...sel.frame, panY: v } })} />
+                    <Slider label="Pan left to right" value={sel.frame.panX ?? 50} min={0} max={100} step={0.5} unit="%" onChange={(v) => updClip({ frame: { ...sel.frame, panX: v } })} />
+                    <Slider label="Pan up and down" value={sel.frame.panY ?? 50} min={0} max={100} step={0.5} unit="%" onChange={(v) => updClip({ frame: { ...sel.frame, panY: v } })} />
                   </>
                 ) : null}
               </>

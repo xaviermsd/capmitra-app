@@ -21,9 +21,9 @@ import { renderExport } from "../hooks/useExport";
 import type { AspectId } from "@/lib/types";
 
 const LENGTHS = [
-  { value: "15-30", label: "15–30 s", min: 15, max: 30 },
-  { value: "30-60", label: "30–60 s", min: 30, max: 60 },
-  { value: "45-90", label: "45–90 s", min: 45, max: 90 },
+  { value: "15-30", label: "15 to 30 s", min: 15, max: 30 },
+  { value: "30-60", label: "30 to 60 s", min: 30, max: 60 },
+  { value: "45-90", label: "45 to 90 s", min: 45, max: 90 },
 ];
 const FORMATS: AspectId[] = ["9:16", "1:1", "16:9"];
 const t2 = (s: number) => `${Math.floor(s / 60)}:${(s % 60).toFixed(1).padStart(4, "0")}`;
@@ -178,7 +178,7 @@ export function ShortsPanel() {
                   <label className="short-pick"><input type="checkbox" checked={c.checked} onChange={(e) => upd(c.id, { checked: e.target.checked })} aria-label={`Include short ${i + 1}`} /></label>
                   <div className="short-title">
                     <b>{i + 1}. {c.title}…</b>
-                    <em>{t2(c.start)} – {t2(c.end)} · {Math.round(c.end - c.start)} s · score {c.score}{c.framed ? " · speaker tracked" : c.framed === false ? " · no face found, centred" : ""}</em>
+                    <em>{t2(c.start)} to {t2(c.end)} · {Math.round(c.end - c.start)} s · score {c.score}{c.framed ? " · speaker tracked" : c.framed === false ? " · no face found, centred" : ""}</em>
                     {c.reasons.length ? <span className="short-why">{c.reasons.join(" · ")}</span> : null}
                   </div>
                   <button className="btn icon short-play" onClick={() => preview(c)} aria-label={playing === c.id ? "Pause" : "Preview"}>{playing === c.id ? <IconPause size={16} /> : <IconPlay size={16} />}</button>

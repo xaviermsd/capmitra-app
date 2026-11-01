@@ -19,7 +19,7 @@ const STEPS: { id: ExportStage; label: string; hint: string }[] = [
 const ORDER = STEPS.map((s) => s.id);
 
 const TIPS = [
-  "Tip: short, punchy captions of 2–4 words keep people watching on Reels and Shorts.",
+  "Tip: short, punchy captions of 2 to 4 words keep people watching on Reels and Shorts.",
   "Tip: try Shorts in the Finish group to turn a long video into several clips.",
   "Tip: Edit by text removes long pauses and filler words in one go.",
   "Tip: Check spelling in Captions learns your names and brands from your dictionary.",

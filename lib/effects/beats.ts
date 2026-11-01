@@ -2,7 +2,7 @@
  * Beat detection for any music file, so effects can land on the beat.
  *
  *  1. onset strength: rise in short-time energy per 512-sample hop (spectral-flux-like)
- *  2. tempo: autocorrelation of the onset curve over 60–190 BPM, favouring 90–140
+ *  2. tempo: autocorrelation of the onset curve over 60 to 190 BPM, favouring 90 to 140
  *  3. phase: the offset whose beat grid collects the most onset energy
  *  4. beats: the grid, nudged to the strongest onset within ±60 ms
  *

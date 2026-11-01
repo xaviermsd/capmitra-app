@@ -318,7 +318,7 @@ export function BatchView() {
         <aside className="batch-config">
           <Section title="For every video">
             <Select label="Caption look" value={cfg.look} options={[{ value: "current", label: "Same as the open project" }, ...TEMPLATES.map((t) => ({ value: t.id, label: `Template: ${t.name}` })), ...presets.map((p) => ({ value: `preset:${p.id}`, label: `My preset: ${p.name}` }))]} onChange={(v) => setCfg({ look: v })} />
-            <Select label="Language" value={cfg.preset} options={PRESETS.map((p) => ({ value: p.id, label: `${p.label} – ${p.note}` }))} onChange={(v) => setCfg({ preset: v })} />
+            <Select label="Language" value={cfg.preset} options={PRESETS.map((p) => ({ value: p.id, label: `${p.label}: ${p.note}` }))} onChange={(v) => setCfg({ preset: v })} />
             <Select label="Brand kit" value={cfg.brandKitId} options={[{ value: "", label: "None" }, ...kits.map((k) => ({ value: k.id, label: k.name }))]} onChange={(v) => setCfg({ brandKitId: v })} />
             <Select label="Second line" value={cfg.translateTo} options={[{ value: "", label: "No translation" }, ...TRANSLATION_TARGETS.map((t) => ({ value: t.code, label: `Translate to ${t.name}` }))]} onChange={(v) => setCfg({ translateTo: v })} hint={cfg.translateTo && !settings.sarvamKey && !server.serverSarvam ? "needs a Sarvam key (Settings)" : undefined} />
             <Toggle label="Highlight keywords" value={cfg.keywords} onChange={(v) => setCfg({ keywords: v })} />

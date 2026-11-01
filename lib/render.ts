@@ -316,7 +316,7 @@ function requestExtraFonts(style: CaptionStyle, px: number) {
   }
 }
 
-/** Stable 0–1 number for a string (same word → same wobble, frame after frame). */
+/** Stable 0 to 1 number for a string (same word → same wobble, frame after frame). */
 function hash01(s: string): number {
   let h = 2166136261;
   for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); }
@@ -375,7 +375,7 @@ function markPoints(kind: NonNullable<CaptionStyle["mark"]>["kind"], w: number, 
   return pts;
 }
 
-/** Draw the first `k` (0–1) of a polyline, so the mark looks drawn on. */
+/** Draw the first `k` (0 to 1) of a polyline, so the mark looks drawn on. */
 function strokePartial(ctx: Ctx, pts: Pt[], k: number) {
   if (k <= 0 || pts.length < 2) return;
   const lens = [0];

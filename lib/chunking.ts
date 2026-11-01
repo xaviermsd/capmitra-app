@@ -3,7 +3,7 @@
  *
  * Hosting limits (Vercel accepts request bodies up to ~4.5 MB) mean a long
  * soundtrack can't be uploaded in one go. We cut it into pieces of about
- * 8–10 minutes, at the quietest moment we can find so words are not cut in
+ * 8 to 10 minutes, at the quietest moment we can find so words are not cut in
  * half, transcribe each piece, then stitch the words back together on the
  * original timeline.
  *
@@ -108,7 +108,7 @@ export function shiftWords<T extends { start: number; end: number }>(words: T[],
   return words.map((w) => ({ ...w, start: w.start + by, end: w.end + by }));
 }
 
-const norm = (s: string) => s.normalize("NFC").replace(/[\s.,!?।॥"'“”‘’:;()\-–—]/g, "").toLowerCase();
+const norm = (s: string) => s.normalize("NFC").replace(/[\s.,!?।॥"'“”‘’:;()\-\u2013\u2014]/g, "").toLowerCase();
 
 /**
  * Merge the words of every piece (already on the original timeline).

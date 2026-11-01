@@ -282,7 +282,7 @@ export function EffectsPanel() {
                   <li key={r.id} className={`onvid-row ${on ? "on" : ""}`}>
                     <button className="onvid-main" onClick={() => { setSelection({ kind: r.kind, id: r.id }); ed.playback.seek(Math.max(0, r.start)); document.querySelector(".ws-panel-body")?.scrollTo({ top: 0, behavior: "smooth" }); }} aria-pressed={on}>
                       <span className={`onvid-ico ${r.kind}`} aria-hidden="true">{r.kind === "fx" ? <IconSparkle size={14} /> : <IconVolume size={14} />}</span>
-                      <span><b>{r.name}</b><em>{fmtClock(r.start)}–{fmtClock(r.end)}{on ? " · editing" : ""}</em></span>
+                      <span><b>{r.name}</b><em>{fmtClock(r.start)} to {fmtClock(r.end)}{on ? " · editing" : ""}</em></span>
                     </button>
                     <button className="btn icon small ghost" aria-label={`Preview ${r.name}`} onClick={() => previewAt(r.start, r.end)}><IconPlay size={13} /></button>
                     <button className="btn icon small ghost" aria-label={`Remove ${r.name}`} onClick={() => { project.update((d) => (r.kind === "fx" ? { ...d, effects: (d.effects ?? []).filter((f) => f.id !== r.id) } : { ...d, sounds: (d.sounds ?? []).filter((x) => x.id !== r.id) })); if (on) setSelection(null); }}><IconTrash size={14} /></button>

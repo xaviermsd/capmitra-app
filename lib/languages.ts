@@ -98,9 +98,9 @@ export const languageName = (code: string | undefined | null) => (code === AUTO 
 
 /**
  * How caption text is written.
- *  native  – the language's own script (ગુજરાતી, हिन्दी, …)
- *  roman   – strict English-letter spelling of every word (Roman Hindi / Roman Gujarati)
- *  casual  – Hinglish / Gujlish: English letters, and English words borrowed into the
+ *  native: the language's own script (ગુજરાતી, हिन्दी, …)
+ *  roman: strict English-letter spelling of every word (Roman Hindi / Roman Gujarati)
+ *  casual: Hinglish / Gujlish: English letters, and English words borrowed into the
  *            speech (वीडियो, લાઇક) written the English way (video, like)
  * "gujlish" is the name older projects saved; it means "casual".
  */

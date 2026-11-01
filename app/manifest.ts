@@ -4,7 +4,7 @@ export default function manifest(): MetadataRoute.Manifest {
   return {
     name: "CapMitra: Captions & Video Editor",
     short_name: "CapMitra",
-    description: "Auto captions and video editing for Reels, Shorts and YouTube",
+    description: "Edit video, audio and captions in one place",
     start_url: "/",
     display: "standalone",
     background_color: "#F7F8F4",

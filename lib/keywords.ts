@@ -12,7 +12,7 @@ const STOP = new Set(
   ).split(/\s+/),
 );
 
-const clean = (s: string) => s.replace(/[.,!?।॥"'“”‘’:;()\-–—]/g, "").toLowerCase();
+const clean = (s: string) => s.replace(/[.,!?।॥"'“”‘’:;()\-\u2013\u2014]/g, "").toLowerCase();
 
 /** Pick the most important word in each caption and mark it as emphasis. */
 export function autoKeywords(words: Word[], lines: CaptionLine[], perLine = 1): Word[] {

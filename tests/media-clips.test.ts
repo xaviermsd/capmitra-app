@@ -34,7 +34,7 @@ describe("extra videos and images on the timeline", () => {
     const tl = buildTimeline([main("m", 0, 4), img("i", 3), main("m2", 4, 8)]);
     expect(tl.duration).toBe(11);
     const out = mapWords(words, 0, tl);
-    // the word at 5–6 s of the source now plays after the 3 s image
+    // the word at 5 to 6 s of the source now plays after the 3 s image
     expect(out.map((w) => [w.id, w.start, w.end])).toEqual([["w1", 1, 2], ["w2", 8, 9]]);
   });
   it("captions never come from an added video, even at the same source times", () => {
