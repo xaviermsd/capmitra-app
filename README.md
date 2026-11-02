@@ -20,6 +20,11 @@ Cut and arrange clips, clean up the sound, add music and effects, caption every 
 <a href="https://ig.me/m/harshprajapatiofficial"><img src="https://img.shields.io/badge/Get_an_invite-DM_on_Instagram-080808?style=for-the-badge&labelColor=D6FF36&logo=instagram&logoColor=080808" alt="Get an invite on Instagram" /></a>
 <a href="#see-it"><img src="https://img.shields.io/badge/See_it_in_action-12_steps-080808?style=for-the-badge&labelColor=F7F8F4" alt="See it in action" /></a>
 
+<br /><br />
+
+<a href="https://www.youtube.com/watch?v=m36a8vHzkaY"><img src="docs/readme/tutorial-video.jpg" alt="Play the CapMitra Edit tutorial on YouTube (3:39)" width="720" /></a><br />
+<a href="https://www.youtube.com/watch?v=m36a8vHzkaY"><b>Watch the full tutorial on YouTube (3:39)</b></a>
+
 ![Next.js](https://img.shields.io/badge/Next.js-16-080808?style=for-the-badge&logo=nextdotjs&logoColor=D6FF36)
 ![TypeScript](https://img.shields.io/badge/TypeScript-5-080808?style=for-the-badge&logo=typescript&logoColor=D6FF36)
 ![Speech to text](https://img.shields.io/badge/Speech_to_text-ElevenLabs_Scribe-D6FF36?style=for-the-badge&labelColor=080808)
